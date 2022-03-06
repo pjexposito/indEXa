@@ -144,9 +144,9 @@ def iniciadb():
     nombre_db = "database.db"
     global datapath
     ruta_db = {
-        'win32': home / 'AppData/Roaming/Buscador',
-        'linux': home / '.local/share/Buscador',
-        'darwin': home / 'Library/Application Support/Buscador'
+        'win32': home / 'AppData/Roaming/indEXa',
+        'linux': home / '.local/share/indEXa',
+        'darwin': home / 'Library/Application Support/indEXa'
         }
     if sys.platform not in ruta_db:
         data_path = "."
