@@ -6,14 +6,23 @@
 
 #Icono por https://www.freepik.com/
 
-import wx, sqlite3, math, os, sys, psutil, mimetypes
+import wx, sqlite3, math, os, sys, psutil, datetime
 from pathlib import Path
-from tinytag import TinyTag
 
 import wx.lib.agw.hypertreelist as HTL
 from wx.lib.embeddedimage import PyEmbeddedImage
 
-nombre_app = "indEXa 0.2β"
+nombre_app = "indEXa 0.22β"
+metadatos = False
+
+if metadatos:
+    from tinytag import TinyTag
+    import mimetypes
+
+#0.1 Primera versión usable. Se usa para generar los primeros ejecutables
+#0.2 Se eliminan todos los prints para prevenir errores.
+#0.21 Se elimina la opción de escanear metadatos. Por ahora no se van a usar, así que no es necesario incluirlos.
+#0.22 Se añade la opción de ver el espacio disponible y ocupado en la unidad, así como la fecha en que se añadió a la base de datos.
 
 carpeta_win = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBj'
@@ -121,13 +130,6 @@ extraible_win = PyEmbeddedImage(
     b'NDoyNSswMDowMErgO1IAAAAASUVORK5CYII=')
 
 
-    
-
-
-def extiende_text(texto, tamano):
-    tam_texto = tamano-len(texto)
-    return texto + ''.join([" " for _ in range(tam_texto)])
-
 def devuelve_tamano(tamano):
     tamano = int(tamano)
     if tamano == 0:
@@ -174,7 +176,7 @@ def iniciadb():
                                                 	ZFOLDERCOUNT	INTEGER,
                                                 	ZISFOLDER	INTEGER,
                                                 	ZPARENT	INTEGER,
-                                                	ZFREEBYTES	INTEGER,
+                                                	ZCREACION	INTEGER,
                                                 	ZPARTOFCATALOG	INTEGER,
                                                 	ZFULLPATH	VARCHAR,
                                                 	ZNAME	VARCHAR,
@@ -353,8 +355,9 @@ class NuevaUnidadDialog(wx.Dialog):
             valor_bytesusados = tamano[1]
             valor_isfolder = 0
             valor_id_unidad = valor_id
-            datos = (valor_id, valor_zent, valor_totalbytes, valor_bytesusados, valor_isfolder, ruta, unidad)
-            cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZUSEDBYTES ,ZISFOLDER, ZFULLPATH, ZNAME) VALUES( ?, ?, ?, ?, ?, ?, ?)''', datos)
+            fecha_creacion = datetime.datetime.now().timestamp()
+            datos = (valor_id, valor_zent, valor_totalbytes, valor_bytesusados, valor_isfolder, fecha_creacion, ruta, unidad)
+            cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZUSEDBYTES ,ZISFOLDER, ZCREACION, ZFULLPATH, ZNAME) VALUES( ?, ?, ?, ?, ?, ?, ?, ?)''', datos)
     
     
             album = ""
@@ -394,34 +397,35 @@ class NuevaUnidadDialog(wx.Dialog):
                 
 
                 #Si se encuentra un archivo de música, se añaden los metadatos a la base de datos
+                album = ""
+                artista = ""
+                titulo = ""
+                if metadatos:    
+                    if ((path.suffix) == '.mp3' or (path.suffix) == '.flac'):
+                        try:
+                            tag = TinyTag.get(path)
+                            album = tag.album
+                            artista = tag.artist
+                            titulo = tag.title
+                        except:
+                            pass
 
-                    
-                if ((path.suffix) == '.mp3' or (path.suffix) == '.flac'):
-                    try:
-                        tag = TinyTag.get(path)
-                        album = tag.album
-                        artista = tag.artist
-                        titulo = tag.title
-                    except:
-                        album = ""
-                        artista = ""
-                        titulo = ""                
-                else:
-                    album = ""
-                    artista = ""
-                    titulo = ""
 
 
                 valor_parent = todas_las_carpetas[path.parent.as_posix()]
                 valor_partofcatalog = valor_id_unidad
                 valor_zent = 1
+
                 if not(path.is_dir()):
                     valor_isfolder = 0
-                    ficheros_analizados += 1                
-                    try:
-                        valor_zkind = mimetypes.MimeTypes().guess_type(path)[0]
-                    except:
-                        valor_zkind = ''
+                    ficheros_analizados += 1    
+                    valor_zkind = 'archivo'            
+                    if metadatos:
+                        try:
+                            valor_zkind = mimetypes.MimeTypes().guess_type(path)[0]
+                        except:
+                            pass
+                        
                 else:
                     valor_zkind = 'carpeta'
                     valor_isfolder = 1
@@ -638,7 +642,7 @@ class Buscador(wx.Frame):
             item = self.lArbol.GetItem(ind,3)
             
             texto = item.GetText().replace("/"," ▸ ")
-            self.barraestado.SetStatusText(extiende_text(texto,70))
+            self.barraestado.SetStatusText(texto,70)
             
 
     def AlPulsar(self, evt):    
@@ -667,12 +671,22 @@ class Buscador(wx.Frame):
         self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZENT=? AND ZNAME=?',valor_a_buscar)
         rows = self.cursorObj.fetchall()
         ruta=rows[0][0]
+        fecha_creacion = rows[0][8]
+        espacio_total = rows[0][2]
+        espacio_usado = rows[0][3]
+        try:
+            fecha_creacion = datetime.datetime.fromtimestamp(fecha_creacion).strftime('%d-%m-%Y a las %H:%M:%S')
+            porciento = str(round((espacio_usado/espacio_total)*100,2))
+            texto = "Creado el " + fecha_creacion + ". Utilizados "+devuelve_tamano(espacio_usado)+ " de "+devuelve_tamano(espacio_total) + " (" +porciento+"%)"
+        except:
+            texto = "Utilizados "+devuelve_tamano(espacio_usado)+ " de "+devuelve_tamano(espacio_total)
 
-
+        self.barraestado.SetStatusText(texto)
         start_path = os.path.expanduser(r"")
         start_dir_entries = self.lista_carpeta(ruta)
         self.new_folder(start_dir_entries,self.root)
         self.tArbol.Expand(self.root)
+        
 
                         
     
@@ -717,6 +731,7 @@ class Buscador(wx.Frame):
             self.cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPK=?',valor)
             conector.commit()
             self.carga_tUnidades()
+            self.tArbol.DeleteAllItems()
 
 
     def lista_carpeta(self,ruta):
@@ -796,7 +811,7 @@ class Buscador(wx.Frame):
             rows = self.cursorObj.fetchall()
             rows = rows[0]
             texto = rows[10].replace("/"," ▸ ")
-            self.barraestado.SetStatusText(extiende_text(texto,70))
+            self.barraestado.SetStatusText(texto,70)
         if (valor[0]==1) and (valor[2]=="FALSE"):
             idd = valor[1]
             self.tArbol.DeleteChildren(idd)
