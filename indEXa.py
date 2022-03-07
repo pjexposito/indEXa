@@ -6,14 +6,14 @@
 
 #Icono por https://www.freepik.com/
 
-import wx, sqlite3, math, os, time, sys, psutil, mimetypes
+import wx, sqlite3, math, os, sys, psutil, mimetypes
 from pathlib import Path
 from tinytag import TinyTag
 
 import wx.lib.agw.hypertreelist as HTL
 from wx.lib.embeddedimage import PyEmbeddedImage
 
-nombre_app = "indEXa 0.1β"
+nombre_app = "indEXa 0.2β"
 
 carpeta_win = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBj'
@@ -139,7 +139,6 @@ def devuelve_tamano(tamano):
     return "%s %s" % (s, size_name[i])
 
 def iniciadb():
-    #print("Inicia db")
     home = Path.home()
     nombre_db = "database.db"
     global datapath
@@ -158,16 +157,13 @@ def iniciadb():
     
     if os.path.exists(nombre_db):
         con = sqlite3.connect(nombre_db)
-        #print("SOLO PARA DEBUG. Se usa la base de datos en el path del archivo Python")
     else:
 
         if os.path.exists(data_path+'/'+nombre_db):
             con = sqlite3.connect(data_path+'/'+nombre_db)
-            #print("Carga correcta. Se usa la base de datos en ",data_path)
         
         else:
             con = sqlite3.connect(data_path+'/'+nombre_db)        
-            #print("No existe db en ", data_path)  
             cursorObj = con.cursor()
             instruccion_sql = """ CREATE TABLE IF NOT EXISTS ZSTORAGEITEM (
                                                 	ZPK	INTEGER,
@@ -304,7 +300,6 @@ class NuevaUnidadDialog(wx.Dialog):
         if ind >=0:
             item = self.selUnidades.GetItem(ind,0)
             self.etiquetaUnidad.write(item.GetText())
-            #print(self.selUnidades.GetItemData(ind))
             
     def btnAnadir(self, evt):
         ind = self.selUnidades.GetFirstSelected()
@@ -339,7 +334,6 @@ class NuevaUnidadDialog(wx.Dialog):
         try:
 
             todas_las_carpetas={}
-            #print("Preparando archivos...")
             tamano_total = tamano[1]
             tamano_sumado = 0
 
@@ -351,9 +345,7 @@ class NuevaUnidadDialog(wx.Dialog):
     
             if rows:
                 valor_id = rows[0][2]+1
-                #print(valor_id)
             else:
-                #print("Base de datos vacía")
                 valor_id = 1
     
             valor_zent = 0
@@ -361,9 +353,7 @@ class NuevaUnidadDialog(wx.Dialog):
             valor_bytesusados = tamano[1]
             valor_isfolder = 0
             valor_id_unidad = valor_id
-            #print(unidad)
             datos = (valor_id, valor_zent, valor_totalbytes, valor_bytesusados, valor_isfolder, ruta, unidad)
-            #print(datos)
             cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZUSEDBYTES ,ZISFOLDER, ZFULLPATH, ZNAME) VALUES( ?, ?, ?, ?, ?, ?, ?)''', datos)
     
     
@@ -388,10 +378,9 @@ class NuevaUnidadDialog(wx.Dialog):
                 
                 valor_id += 1
                 tamano_sumado = tamano_sumado+size_int
-                #Si se actualizaran los valores en cada iteración el programa iría lento. Por eso se actualiza cada 500 búsquedas 
+                #Si se actualizaran los valores en cada iteración el programa iría lento. Por eso se actualiza cada 50 búsquedas 
                 if ((ficheros_analizados%50) == 0):
                 
-                    #pbProgreso["value"]=ficheros_analizados
                     wx.Yield()
                     try:
                         
@@ -402,10 +391,7 @@ class NuevaUnidadDialog(wx.Dialog):
                         dlg.Update(valor_porciento, cadena)
                     except:
                         pass
-                    #print(max, tamano_sumado/tamano_total)
                 
-                #print ("Analizando ",path)
-                #Se establece size en 0. Luego, se trata de obtener el tamaño del archivo. Si no se consigue size sigue en 0
 
                 #Si se encuentra un archivo de música, se añaden los metadatos a la base de datos
 
@@ -416,7 +402,6 @@ class NuevaUnidadDialog(wx.Dialog):
                         album = tag.album
                         artista = tag.artist
                         titulo = tag.title
-                        print(album, artista, titulo)
                     except:
                         album = ""
                         artista = ""
@@ -432,9 +417,7 @@ class NuevaUnidadDialog(wx.Dialog):
                 valor_zent = 1
                 if not(path.is_dir()):
                     valor_isfolder = 0
-                    ficheros_analizados += 1
-                    print(mimetypes.MimeTypes().guess_type(path)[0])
-                
+                    ficheros_analizados += 1                
                     try:
                         valor_zkind = mimetypes.MimeTypes().guess_type(path)[0]
                     except:
@@ -636,7 +619,6 @@ class Buscador(wx.Frame):
             btnTxt = '<unknown>'
         self.carga_tUnidades()        
 
-        #print("Aquí debería cargar unidades")
 
         dialog.Destroy()
         
@@ -646,12 +628,9 @@ class Buscador(wx.Frame):
         ind = self.lUnidades.GetFirstSelected()
         if ind >=0:
             item = self.lUnidades.GetItem(ind,0)
-            #print(self.lUnidades.GetItemData(ind))
             self.seleccion_arbol(item.GetText())
             self.eBuscar.SetValue("")
-            #print(self.lUnidades.GetItemData(ind))
             
-            #print (item.GetText())
             
     def pulsa_en_item(self, evt):
         ind = self.lArbol.GetFirstSelected()
@@ -660,9 +639,7 @@ class Buscador(wx.Frame):
             
             texto = item.GetText().replace("/"," ▸ ")
             self.barraestado.SetStatusText(extiende_text(texto,70))
-            #print(self.lUnidades.GetItemData(ind))
             
-            #print (item.GetText())
 
     def AlPulsar(self, evt):    
         try:
@@ -677,39 +654,25 @@ class Buscador(wx.Frame):
         
         item = evt.GetItem()
         self.extraer_datos_tvResultados(item)
-        
-        
-        #valor = self.tree.GetPyData(item)
-        #print(valor)
-        #pos = evt.GetPosition()
-        #item, flags, col = self.tree.HitTest(pos)
-        #print(col)
+
 
     def seleccion_arbol(self,unidad):
         self.lArbol.Show(False)
         self.tArbol.Show(True)
         self.pPrincipal.Layout()
-        #print(unidad)
         self.tArbol.DeleteAllItems()
-        t = time.process_time()
         self.root = self.tArbol.AddRoot(unidad)
         self.tArbol.SetPyData(self.root ,"Principal") 
         valor_a_buscar = (0,unidad,)
-        t_primero = time.process_time()
         self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZENT=? AND ZNAME=?',valor_a_buscar)
         rows = self.cursorObj.fetchall()
-        #print(rows)
         ruta=rows[0][0]
-        #print(rows[0][0])
 
-        #print("Tiempo de primera búsqueda:",time.process_time() - t_primero)
 
         start_path = os.path.expanduser(r"")
         start_dir_entries = self.lista_carpeta(ruta)
         self.new_folder(start_dir_entries,self.root)
         self.tArbol.Expand(self.root)
-        elapsed_time = time.process_time() - t
-        #print("Tiempo en cargar el primer árbol: ",elapsed_time)
 
                         
     
@@ -732,7 +695,6 @@ class Buscador(wx.Frame):
         
         self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZENT=0')
         rows = self.cursorObj.fetchall()
-        #print(rows)
         
         self.lUnidades.InsertColumn(0, "Unidades",width = 150)
 
@@ -750,7 +712,6 @@ class Buscador(wx.Frame):
         ind = self.lUnidades.GetFirstSelected()
         if ind >=0:
             item = self.lUnidades.GetItemData(ind)
-            #print(item)
             valor = (item,)
             self.cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPARTOFCATALOG=?',valor)
             self.cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPK=?',valor)
@@ -759,7 +720,6 @@ class Buscador(wx.Frame):
 
 
     def lista_carpeta(self,ruta):
-        t = time.process_time()
         valores = []
         valores2=[]
         valor_a_buscar = (ruta,)
@@ -784,14 +744,11 @@ class Buscador(wx.Frame):
               "ruta_completa": row[10]
             }
             valores.append(fila)
-        elapsed_time = time.process_time() - t
-        #print("Tiempo en cargar rama: ",elapsed_time)
         return valores
 
 
 
     def new_folder(self, directory_entries, parent_iid):
-        #print("Parent_iid: ",parent_iid)
         for datos in directory_entries:
             carpeta=datos["carpeta"]
             tipo = datos["tipo"]
@@ -824,7 +781,6 @@ class Buscador(wx.Frame):
         valor = (item,)
         self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor)
         rows = self.cursorObj.fetchall()
-        #print(rows)
         
         return rows[0][10]
 
@@ -841,7 +797,6 @@ class Buscador(wx.Frame):
             rows = rows[0]
             texto = rows[10].replace("/"," ▸ ")
             self.barraestado.SetStatusText(extiende_text(texto,70))
-        #print(valor)
         if (valor[0]==1) and (valor[2]=="FALSE"):
             idd = valor[1]
             self.tArbol.DeleteChildren(idd)
@@ -857,7 +812,6 @@ class Buscador(wx.Frame):
             self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
             rows = self.cursorObj.fetchall()
             rows = rows[0]
-            #print(rows[4],rows[2])
 
             
 
