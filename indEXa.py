@@ -12,7 +12,7 @@ from pathlib import Path
 import wx.lib.agw.hypertreelist as HTL
 from wx.lib.embeddedimage import PyEmbeddedImage
 
-nombre_app = "indEXa 0.22β"
+nombre_app = "indEXa 0.23β"
 metadatos = False
 
 if metadatos:
@@ -23,6 +23,7 @@ if metadatos:
 #0.2 Se eliminan todos los prints para prevenir errores.
 #0.21 Se elimina la opción de escanear metadatos. Por ahora no se van a usar, así que no es necesario incluirlos.
 #0.22 Se añade la opción de ver el espacio disponible y ocupado en la unidad, así como la fecha en que se añadió a la base de datos.
+#0.23 Corregido un bug en SetStatusText que hacía que el programa no cargara las carpetas
 
 carpeta_win = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBj'
@@ -642,7 +643,7 @@ class Buscador(wx.Frame):
             item = self.lArbol.GetItem(ind,3)
             
             texto = item.GetText().replace("/"," ▸ ")
-            self.barraestado.SetStatusText(texto,70)
+            self.barraestado.SetStatusText(texto)
             
 
     def AlPulsar(self, evt):    
@@ -811,7 +812,7 @@ class Buscador(wx.Frame):
             rows = self.cursorObj.fetchall()
             rows = rows[0]
             texto = rows[10].replace("/"," ▸ ")
-            self.barraestado.SetStatusText(texto,70)
+            self.barraestado.SetStatusText(texto)
         if (valor[0]==1) and (valor[2]=="FALSE"):
             idd = valor[1]
             self.tArbol.DeleteChildren(idd)
