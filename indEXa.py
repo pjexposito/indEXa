@@ -12,7 +12,7 @@ from pathlib import Path
 import wx.lib.agw.hypertreelist as HTL
 from wx.lib.embeddedimage import PyEmbeddedImage
 
-nombre_app = "indEXa 0.23β"
+nombre_app = "indEXa 0.25β"
 metadatos = False
 
 if metadatos:
@@ -24,6 +24,8 @@ if metadatos:
 #0.21 Se elimina la opción de escanear metadatos. Por ahora no se van a usar, así que no es necesario incluirlos.
 #0.22 Se añade la opción de ver el espacio disponible y ocupado en la unidad, así como la fecha en que se añadió a la base de datos.
 #0.23 Corregido un bug en SetStatusText que hacía que el programa no cargara las carpetas
+#0.24 Posible bug corregido que impide escanear algunos discos duros
+#0.25 Añadida la posibilidad de indexar una carpeta
 
 carpeta_win = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBj'
@@ -266,9 +268,9 @@ class NuevaUnidadDialog(wx.Dialog):
 
 
 
-        btnAdd = wx.Button(self, wx.ID_APPLY, "Añadir")
-        btnsizer.AddButton(btnAdd)
-        btnAdd.Bind(wx.EVT_BUTTON, self.btnAnadir)
+        self.btnAdd = wx.Button(self, wx.ID_APPLY, "Añadir")
+        btnsizer.AddButton(self.btnAdd)
+        self.btnAdd.Bind(wx.EVT_BUTTON, self.btnAnadir)
 
 
         btn = wx.Button(self, wx.ID_CANCEL)
@@ -278,16 +280,21 @@ class NuevaUnidadDialog(wx.Dialog):
         
 
         sizer.Add(btnsizer, 0, wx.ALL, 5)
+        wx.Button.Disable(self.btnAdd)
+
+
 
         self.SetSizer(sizer)
         sizer.Fit(self)
         discos = psutil.disk_partitions(all=False)
         self.selUnidades.ClearAll()
 
-        self.selUnidades.InsertColumn(0, "Unidades",width = 180)
+        self.selUnidades.InsertColumn(0, "Unidades",width = 150)
+        self.selUnidades.Append(("Añadir ubicación...",))
         
+        self.selUnidades.SetItemData(0,0)
         for disco in discos:
-            if ("rootfs" in disco[3]) or ("dontbrowse" in disco[3]) or ("fixed" in disco[3]):
+            if ("rootfs" in disco[3]) or ("dontbrowse" in disco[3]):
                 pass
             else:
                 try:
@@ -302,7 +309,23 @@ class NuevaUnidadDialog(wx.Dialog):
         ind = self.selUnidades.GetFirstSelected()
         if ind >=0:
             item = self.selUnidades.GetItem(ind,0)
-            self.etiquetaUnidad.write(item.GetText())
+            unidad = item.GetText()
+            if unidad == "Añadir ubicación...":
+                dlg = wx.DirDialog (None, "Selecciona una carpeta", "",wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST)
+                if dlg.ShowModal() == wx.ID_OK:
+                    dirname = dlg.GetPath()
+                    unidad = str(dirname)
+                    self.selUnidades.SetItemText(0,dirname)
+                    self.etiquetaUnidad.Clear()
+                    self.etiquetaUnidad.write(unidad)
+                    wx.Button.Enable(self.btnAdd)
+                else:
+                    pass
+                dlg.Destroy()
+            else:
+                wx.Button.Enable(self.btnAdd)
+                self.etiquetaUnidad.Clear()
+                self.etiquetaUnidad.write(unidad)
             
     def btnAnadir(self, evt):
         ind = self.selUnidades.GetFirstSelected()
