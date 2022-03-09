@@ -1,0 +1,2 @@
+source buscador/bin/activate
+pyinstaller --windowed --icon=icono.icns indEXa.py

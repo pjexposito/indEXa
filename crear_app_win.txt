@@ -1,0 +1,2 @@
+Scripts\activate
+pyinstaller --icon icono.ico --onefile --noconsole indEXa.py

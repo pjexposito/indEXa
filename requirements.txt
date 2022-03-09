@@ -1,0 +1,4 @@
+TinyTag
+psutil
+wxPython
+pathlib
