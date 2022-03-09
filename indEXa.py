@@ -314,7 +314,7 @@ class NuevaUnidadDialog(wx.Dialog):
                 dlg = wx.DirDialog (None, "Selecciona una carpeta", "",wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST)
                 if dlg.ShowModal() == wx.ID_OK:
                     dirname = dlg.GetPath()
-                    unidad = str(dirname)
+                    unidad = str(Path(dirname).name)
                     self.selUnidades.SetItemText(0,dirname)
                     self.etiquetaUnidad.Clear()
                     self.etiquetaUnidad.write(unidad)
@@ -325,7 +325,10 @@ class NuevaUnidadDialog(wx.Dialog):
             else:
                 wx.Button.Enable(self.btnAdd)
                 self.etiquetaUnidad.Clear()
-                self.etiquetaUnidad.write(unidad)
+                if len(unidad) ==3:
+                    self.etiquetaUnidad.write(unidad)
+                else:
+                    self.etiquetaUnidad.write(str(Path(unidad).name))
             
     def btnAnadir(self, evt):
         ind = self.selUnidades.GetFirstSelected()
