@@ -12,7 +12,11 @@ from pathlib import Path
 import wx.lib.agw.hypertreelist as HTL
 from wx.lib.embeddedimage import PyEmbeddedImage
 
-nombre_app = "indEXa 0.25β"
+if sys.platform=='win32':
+    import win32api
+    #Sólo en Windows. Se instala con pip install pypiwin32
+
+nombre_app = "indEXa 0.27β"
 metadatos = False
 
 if metadatos:
@@ -26,6 +30,8 @@ if metadatos:
 #0.23 Corregido un bug en SetStatusText que hacía que el programa no cargara las carpetas
 #0.24 Posible bug corregido que impide escanear algunos discos duros
 #0.25 Añadida la posibilidad de indexar una carpeta
+#0.26 Se añade la posibilidad de poder mostrar todas las unidades, aunque se trate de unidades de sistema. Se añaden tooltips
+#0.27 Hacer que en Windows se obtenga la etiqueta de la unidad y se escriba como sugerencia
 
 carpeta_win = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBj'
@@ -239,6 +245,8 @@ class NuevaUnidadDialog(wx.Dialog):
 
         label = wx.StaticText(self, -1, "Añadir nueva unidad")
         sizer.Add(label, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
+        label.SetToolTip("Unidad a escanear. Puedes seleccionar una carpeta utilizando el primer ítem de la lista (Añadir ubicación...)")
+
 
         box = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -258,11 +266,23 @@ class NuevaUnidadDialog(wx.Dialog):
 
         self.etiquetaUnidad = wx.TextCtrl(self, -1, "", size=(80,-1))
         box.Add(self.etiquetaUnidad, 1, wx.ALIGN_CENTRE|wx.ALL, 5)
+        self.etiquetaUnidad.SetToolTip("Escribe el nombre/etiqueta de la unidad seleccionada")
+
 
         sizer.Add(box, 0, wx.EXPAND|wx.ALL, 5)
 
         line = wx.StaticLine(self, -1, size=(20,-1), style=wx.LI_HORIZONTAL)
         sizer.Add(line, 0, wx.EXPAND|wx.RIGHT|wx.TOP, 5)
+        
+        self.chkunidades = wx.CheckBox(self, -1, "Mostrar todas las unidades")
+        sizer.Add(self.chkunidades, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
+        self.chkunidades.Bind(wx.EVT_CHECKBOX, self.eventocheckbox)
+        self.chkunidades.SetToolTip("Actívalo para mostrar unidades de sistema u ocultas")
+        
+
+
+        line2 = wx.StaticLine(self, -1, size=(20,-1), style=wx.LI_HORIZONTAL)
+        sizer.Add(line2, 0, wx.EXPAND|wx.RIGHT|wx.TOP, 5)
 
         btnsizer = wx.StdDialogButtonSizer()
 
@@ -286,6 +306,9 @@ class NuevaUnidadDialog(wx.Dialog):
 
         self.SetSizer(sizer)
         sizer.Fit(self)
+        self.lista_unidades(False)
+        
+    def lista_unidades(self,todas):
         discos = psutil.disk_partitions(all=False)
         self.selUnidades.ClearAll()
 
@@ -294,7 +317,7 @@ class NuevaUnidadDialog(wx.Dialog):
         
         self.selUnidades.SetItemData(0,0)
         for disco in discos:
-            if ("rootfs" in disco[3]) or ("dontbrowse" in disco[3]):
+            if (("rootfs" in disco[3]) or ("dontbrowse" in disco[3]) or ("fixed" in disco[3])) and not(todas):
                 pass
             else:
                 try:
@@ -325,8 +348,12 @@ class NuevaUnidadDialog(wx.Dialog):
             else:
                 wx.Button.Enable(self.btnAdd)
                 self.etiquetaUnidad.Clear()
-                if len(unidad) ==3:
-                    self.etiquetaUnidad.write(unidad)
+                if sys.platform=='win32':
+                    etiquetawindows = win32api.GetVolumeInformation(unidad)[0]
+                    if len(etiquetawindows)>0:
+                        self.etiquetaUnidad.write(etiquetawindows)
+                    else:
+                        self.etiquetaUnidad.write(unidad)
                 else:
                     self.etiquetaUnidad.write(str(Path(unidad).name))
             
@@ -340,6 +367,14 @@ class NuevaUnidadDialog(wx.Dialog):
             unidad = self.etiquetaUnidad.GetLineText(0)
             self.add_to_db(ruta, unidad,tamano)
             self.Destroy()
+            
+    def eventocheckbox(self, evt):
+        if self.chkunidades.GetValue():
+            self.lista_unidades(True)
+        else:
+            self.lista_unidades(False)
+        
+            
             
             
     def add_to_db(self, ruta, unidad,tamano):
@@ -505,7 +540,7 @@ class Buscador(wx.Frame):
         self.eBuscar = wx.SearchCtrl(self.pPrincipal, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
         self.eBuscar.ShowCancelButton(True)
         self.eBuscar.Bind(wx.EVT_SEARCH, self.OnKeyDown)
-        
+        self.eBuscar.SetToolTip("Escribe el texto a buscar y pulsa Intro para iniciar la búsqueda.")
 
         sBotones = wx.BoxSizer(wx.HORIZONTAL)
         
@@ -516,11 +551,12 @@ class Buscador(wx.Frame):
         self.btnGestionar = wx.Button(self.pPrincipal, wx.ID_ANY, "Gestionar")
         sBotones.Add(self.btnGestionar, 1, wx.ALL | wx.EXPAND, 3)
         self.btnGestionar.Bind(wx.EVT_BUTTON, self.boton_modal)
-        
+        self.btnGestionar.SetToolTip("Muestra la herramienta para añadir unidades a la base de datos.")
 
         self.btnBorrar = wx.Button(self.pPrincipal, wx.ID_ANY, u"Borrar…")
         sBotones.Add(self.btnBorrar, 1, wx.ALL | wx.EXPAND, 3)
         self.btnBorrar.Bind(wx.EVT_BUTTON, self.borra_unidades)
+        self.btnBorrar.SetToolTip("Borra una unidad de la lista. Permite confirmar la acción antes de continuar.")
         
 
         
