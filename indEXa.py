@@ -16,7 +16,7 @@ if sys.platform=='win32':
     import win32api
     #Sólo en Windows. Se instala con pip install pypiwin32
 
-nombre_app = "indEXa 0.27β"
+nombre_app = "indEXa 0.31β"
 metadatos = False
 
 if metadatos:
@@ -32,6 +32,10 @@ if metadatos:
 #0.25 Añadida la posibilidad de indexar una carpeta
 #0.26 Se añade la posibilidad de poder mostrar todas las unidades, aunque se trate de unidades de sistema. Se añaden tooltips
 #0.27 Hacer que en Windows se obtenga la etiqueta de la unidad y se escriba como sugerencia
+#0.28 Se añade una nueva opción para buscar archivos duplicados
+#0.29 Cambios en la forma de listar unidades. Se puede establecer el valor True para que muestre TODAS las particiones
+#0.3 Se comprime la base de datos al eliminar una unidad. 
+#0.31 Se muestra el tamaño total de las carpetas
 
 carpeta_win = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBj'
@@ -309,7 +313,11 @@ class NuevaUnidadDialog(wx.Dialog):
         self.lista_unidades(False)
         
     def lista_unidades(self,todas):
-        discos = psutil.disk_partitions(all=False)
+        if todas:
+            discos = psutil.disk_partitions(all=True)
+        else:
+            discos = psutil.disk_partitions(all=False)
+            
         self.selUnidades.ClearAll()
 
         self.selUnidades.InsertColumn(0, "Unidades",width = 150)
@@ -375,6 +383,23 @@ class NuevaUnidadDialog(wx.Dialog):
             self.lista_unidades(False)
         
             
+    def tamano_carpeta(self, carpeta):
+        cursorObj = conector.cursor()
+        datos = (carpeta,)
+        tamano_total = 0
+        cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPARENT=?',datos)
+        rows = cursorObj.fetchall()
+        for row in rows:
+            tipo = row[6]
+            id_carpeta = row[0]
+            if tipo == 1:
+                tamano = self.tamano_carpeta(id_carpeta)
+                datos_update = (tamano, id_carpeta,)
+                cursorObj.execute('UPDATE ZSTORAGEITEM SET ZTOTALBYTES=? WHERE ZPK=?',datos_update)
+            else:
+                tamano = row[2]            
+            tamano_total = tamano_total + tamano
+        return tamano_total        
             
             
     def add_to_db(self, ruta, unidad,tamano):
@@ -406,12 +431,12 @@ class NuevaUnidadDialog(wx.Dialog):
             #cursorObj.execute('DELETE FROM ZTOTALES')
             cursorObj.execute('SELECT * FROM ZTOTALES WHERE ZPK=1')
             rows = cursorObj.fetchall()
-    
+
             if rows:
                 valor_id = rows[0][2]+1
             else:
                 valor_id = 1
-    
+
             valor_zent = 0
             valor_totalbytes = tamano[0]
             valor_bytesusados = tamano[1]
@@ -420,8 +445,8 @@ class NuevaUnidadDialog(wx.Dialog):
             fecha_creacion = datetime.datetime.now().timestamp()
             datos = (valor_id, valor_zent, valor_totalbytes, valor_bytesusados, valor_isfolder, fecha_creacion, ruta, unidad)
             cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZUSEDBYTES ,ZISFOLDER, ZCREACION, ZFULLPATH, ZNAME) VALUES( ?, ?, ?, ?, ?, ?, ?, ?)''', datos)
-    
-    
+
+
             album = ""
             artista = ""
             titulo = ""
@@ -430,7 +455,7 @@ class NuevaUnidadDialog(wx.Dialog):
             #Se establece que la ruta principal tiene el valor 0. De ahí colgaran todas las ramas del árbol de carpetas
             todas_las_carpetas[ruta]=valor_id
 
-    
+
             for path in Path(ruta).rglob('*'):  
                 ruta_corregida = path.parent.as_posix()
                 size = 0
@@ -440,23 +465,23 @@ class NuevaUnidadDialog(wx.Dialog):
                     size_int = path.stat().st_size
                 except:
                     pass
-                
+            
                 valor_id += 1
                 tamano_sumado = tamano_sumado+size_int
                 #Si se actualizaran los valores en cada iteración el programa iría lento. Por eso se actualiza cada 50 búsquedas 
                 if ((ficheros_analizados%50) == 0):
-                
+            
                     wx.Yield()
                     try:
-                        
+                    
                         valor_porciento = int((tamano_sumado/tamano_total)*100)
                         cadena = "Procesando "+devuelve_tamano(tamano_sumado)+" de "+devuelve_tamano(tamano_total)+"\n"+str(ficheros_analizados)+" ficheros analizados."
                         #dlg.Update(0,path.name)            
-                        
+                    
                         dlg.Update(valor_porciento, cadena)
                     except:
                         pass
-                
+            
 
                 #Si se encuentra un archivo de música, se añaden los metadatos a la base de datos
                 album = ""
@@ -487,27 +512,33 @@ class NuevaUnidadDialog(wx.Dialog):
                             valor_zkind = mimetypes.MimeTypes().guess_type(path)[0]
                         except:
                             pass
-                        
+                    
                 else:
                     valor_zkind = 'carpeta'
                     valor_isfolder = 1
                     todas_las_carpetas[path.as_posix()]=valor_id
-            
+        
                 datos = (valor_id, valor_zent, size, valor_isfolder, valor_parent, valor_partofcatalog, str(path.as_posix()), str(path.name), valor_zkind, titulo, artista, album)
                 cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZISFOLDER, ZPARENT, ZPARTOFCATALOG, ZFULLPATH, ZNAME, ZKIND, ZTITULO, ZARTISTA, ZALBUM) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', datos)
 
             datos = (1,"StorageItem", valor_id)
             cursorObj.execute('DELETE FROM ZTOTALES')
             cursorObj.execute('''INSERT INTO ZTOTALES(ZPK, ZNAME, ZITEMS) VALUES(?, ?, ?)''', datos)
+        
+            # --= Se terminan de añadir archivos =--
+            # --= Ahora se añade lo que ocupa cada carpeta =--
+            self.tamano_carpeta(valor_id_unidad)
+        
             conector.commit()
             dlg.Destroy()
+   
         except Exception as e: 
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             a = str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno)
             wx.MessageBox(a, 'Warning', wx.OK | wx.CANCEL | wx.ICON_WARNING)
             dlg.Update(0,str(e))            
-
+ 
 class Buscador(wx.Frame):
     def __init__(self, *args, **kwds):
         
@@ -541,12 +572,18 @@ class Buscador(wx.Frame):
         self.eBuscar.ShowCancelButton(True)
         self.eBuscar.Bind(wx.EVT_SEARCH, self.OnKeyDown)
         self.eBuscar.SetToolTip("Escribe el texto a buscar y pulsa Intro para iniciar la búsqueda.")
-
+        self.btnDuplicados = wx.Button(self.pPrincipal, wx.ID_ANY, "Buscar duplicados")
+        self.btnDuplicados.SetToolTip("Busca los archivos duplicados en todas las localizaciones.")
+        self.btnDuplicados.Bind(wx.EVT_BUTTON, self.buscar_duplicados)
+        
         sBotones = wx.BoxSizer(wx.HORIZONTAL)
         
         dUnidades.Add(self.eBuscar, 0, wx.ALL | wx.EXPAND, 6)
+        
         dUnidades.Add(self.lUnidades, 1, wx.ALL | wx.EXPAND, 6)
         dUnidades.Add(sBotones, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 6)
+        dUnidades.Add(self.btnDuplicados, 0, wx.ALL | wx.EXPAND, 6)
+
 
         self.btnGestionar = wx.Button(self.pPrincipal, wx.ID_ANY, "Gestionar")
         sBotones.Add(self.btnGestionar, 1, wx.ALL | wx.EXPAND, 3)
@@ -689,7 +726,40 @@ class Buscador(wx.Frame):
 
         dialog.Destroy()
         
-
+    def buscar_duplicados(self, evt):
+        self.lArbol.Show(True)
+        
+        self.tArbol.Show(False)
+        self.lArbol.DeleteAllItems()
+        self.lArbol.Append(("Buscando...",))
+        self.lArbol.Append(("",))
+        self.lArbol.Append(("Por favor, espera...",))
+        
+        self.pPrincipal.Layout()
+        wx.Yield()
+        self.cursorObj.execute("""
+            SELECT a.ZPK, a.ZTOTALBYTES, a.ZFULLPATH, a.ZNAME, a.ZPARTOFCATALOG
+            FROM ZSTORAGEITEM a
+            JOIN (SELECT ZTOTALBYTES, ZNAME, COUNT(*)
+            FROM ZSTORAGEITEM 
+            WHERE ZISFOLDER = 0 AND ZTOTALBYTES>100000000
+            GROUP BY ZTOTALBYTES, ZNAME
+            HAVING count(*) > 1 ) b
+            ON a.ZTOTALBYTES = b.ZTOTALBYTES
+            AND a.ZNAME = b.ZNAME
+            ORDER BY a.ZTOTALBYTES DESC
+        """)
+        rows = self.cursorObj.fetchall()
+        self.lArbol.DeleteAllItems()
+        
+        for row in rows:
+            valor_a_buscar = (row[4],)
+            self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
+            rows = self.cursorObj.fetchall()
+            unidad = rows[0][11]
+            datos = (row[3],devuelve_tamano(row[1]),unidad, row[2])
+            self.lArbol.Append(datos)
+        
 
     def seleccion_unidades(self, evt):
         ind = self.lUnidades.GetFirstSelected()
@@ -793,6 +863,9 @@ class Buscador(wx.Frame):
             self.cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPARTOFCATALOG=?',valor)
             self.cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPK=?',valor)
             conector.commit()
+            self.cursorObj.execute('VACUUM')
+            conector.commit()
+            
             self.carga_tUnidades()
             self.tArbol.DeleteAllItems()
 
@@ -840,6 +913,7 @@ class Buscador(wx.Frame):
             ruta_completa = datos["ruta_completa"]
             if (carpeta == 1):
                 subdir_iid = self.tArbol.AppendItem(parent_iid,nombre)
+                self.tArbol.SetItemText(subdir_iid, devuelve_tamano(tamano), 1)
                 self.tArbol.SetPyData(subdir_iid,(carpeta, subdir_iid,"FALSE",id))  
                 self.tArbol.SetItemImage(subdir_iid, self.fldridx, which = wx.TreeItemIcon_Normal)
                 self.tArbol.SetItemImage(subdir_iid, self.fldropenidx, which = wx.TreeItemIcon_Expanded)
