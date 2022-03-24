@@ -4,7 +4,8 @@
 
 #Icono por https://www.freepik.com/
 
-import wx, sqlite3, math, os, sys, psutil, datetime
+import wx, sqlite3, math, os, sys, psutil, datetime,subprocess
+
 from pathlib import Path
 
 import wx.lib.agw.hypertreelist as HTL
@@ -14,7 +15,7 @@ if sys.platform=='win32':
     import win32api
     #Sólo en Windows. Se instala con pip install pypiwin32
 
-nombre_app = "indEXa 0.33β"
+nombre_app = "indEXa 0.34β"
 metadatos = False
 
 
@@ -37,6 +38,7 @@ if metadatos:
 #0.31 Se muestra el tamaño total de las carpetas
 #0.32 Añadir opción para renombrar unidades
 #0.33 Añadir opción para ver o ocultar archivos ocultos
+#0.34 Ahora se pueden abrir los archivos listados haciendo click izquierdo sobre el ítem
 
 carpeta_win = PyEmbeddedImage(
     b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBj'
@@ -664,6 +666,12 @@ class Buscador(wx.Frame):
         self.tArbol.GetMainWindow().Bind(wx.EVT_LEFT_UP, self.AlPulsar)
         self.tArbol.Bind(wx.EVT_TREE_ITEM_EXPANDED, self.AlAbrir)
         self.lArbol.Bind(wx.EVT_LIST_ITEM_SELECTED, self.pulsa_en_item)
+        self.lArbol.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.boton_secundario_lArbol)
+        
+        self.tArbol.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.boton_secundario_tArbol)
+        
+
+        
         
         self.lUnidades.Bind(wx.EVT_LIST_ITEM_SELECTED, self.seleccion_unidades)
         self.lUnidades.Bind(wx.EVT_RIGHT_DOWN, self.renombra_lista)
@@ -683,6 +691,55 @@ class Buscador(wx.Frame):
             item = self.lUnidades.GetItem(ind,0)
             self.seleccion_arbol(item.GetText())
 
+    def boton_secundario_lArbol(self, evt):
+        ind = self.lArbol.GetFirstSelected()
+        if ind >=0:
+            ruta = self.lArbol.GetItem(ind,3).GetText()
+
+        self.popupmenucarpeta = wx.Menu()
+        menuAbrirCarpetaContenedora = self.popupmenucarpeta.Append(1, 'Abrir carpeta contenedora')
+        menuSeparador = self.popupmenucarpeta.Append(-1, "","",wx.ITEM_SEPARATOR)
+        menuAbrir = self.popupmenucarpeta.Append(2, 'Abrir')
+        self.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: self.abrir_desde_menu(evt, ruta, 0), menuAbrirCarpetaContenedora)
+        self.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: self.abrir_desde_menu(evt, ruta, 1), menuAbrir)
+        self.PopupMenu(self.popupmenucarpeta, evt.GetPoint())
+
+    def boton_secundario_tArbol(self, evt):
+        item = evt.GetItem()
+        valor = self.tArbol.GetPyData(item)
+        if valor[0]==1:
+            valor_a_buscar = (valor[3],)
+        elif valor[0]==0:
+            valor_a_buscar = (valor[1],)
+
+        self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
+        ruta = self.cursorObj.fetchall()[0][10]
+        
+        self.popupmenucarpeta = wx.Menu()
+        menuAbrirCarpetaContenedora = self.popupmenucarpeta.Append(1, 'Abrir carpeta contenedora')
+        menuSeparador = self.popupmenucarpeta.Append(-1, "","",wx.ITEM_SEPARATOR)
+        menuAbrir = self.popupmenucarpeta.Append(2, 'Abrir')
+        self.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: self.abrir_desde_menu(evt, ruta, 0), menuAbrirCarpetaContenedora)
+        self.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: self.abrir_desde_menu(evt, ruta, 1), menuAbrir)
+        self.PopupMenu(self.popupmenucarpeta, evt.GetPoint())
+
+    
+    def abrir_desde_menu(self, evt,  dato, tipo):
+        ruta = Path(dato)
+        if os.path.exists(ruta):
+            if tipo == 0:
+                ruta = str(ruta.parent)
+                #Se debe abrir la carpeta contenedora
+            else:
+                ruta = str(ruta)
+                #Se debe abrir el archivo/carpeta
+            if sys.platform=='win32':
+                os.startfile(os.path.realpath(ruta))
+            else:
+                subprocess.run(['open', os.path.realpath(ruta)])
+        else:
+            a = wx.MessageDialog(None, "Archivo no encontrado. Conecta la unidad y prueba de nuevo.", caption="Unidad no conectada",style=wx.OK|wx.ICON_WARNING|wx.CENTRE).ShowModal()
+            
         
     def renombra_lista(self, event):
         ind = self.lUnidades.GetFirstSelected()
@@ -737,10 +794,7 @@ class Buscador(wx.Frame):
                 datos = (row[11],devuelve_tamano(row[2]),unidad, row[10])
                 self.lArbol.Append(datos)
         
-        
-        
-        
-        
+
         
     def boton_modal(self, evt):
         dlg = NuevaUnidadDialog(self, -1, "Añadir nueva unidad", size=(400, 200),
