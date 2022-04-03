@@ -1,27 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: UTF-8 -*-
-
-
-#Icono por https://www.freepik.com/
-
-import wx, sqlite3, math, os, sys, psutil, datetime,subprocess
-
-from pathlib import Path
-
-import wx.lib.agw.hypertreelist as HTL
-from wx.lib.embeddedimage import PyEmbeddedImage
-
-if sys.platform=='win32':
-    import win32api
-    #Sólo en Windows. Se instala con pip install pypiwin32
-
-nombre_app = "indEXa 0.34β"
-metadatos = False
-
-
-if metadatos:
-    from tinytag import TinyTag
-    import mimetypes
+#!/usr/local/bin/python3
+# -*- coding: utf-8 -*-
 
 #0.1 Primera versión usable. Se usa para generar los primeros ejecutables
 #0.2 Se eliminan todos los prints para prevenir errores.
@@ -39,124 +17,93 @@ if metadatos:
 #0.32 Añadir opción para renombrar unidades
 #0.33 Añadir opción para ver o ocultar archivos ocultos
 #0.34 Ahora se pueden abrir los archivos listados haciendo click izquierdo sobre el ítem
+#0.4 Cambio completo del programa. Se divide el script entre código e interfaz y se comentan todas las funciones. También se limpia un poco el código
 
-carpeta_win = PyEmbeddedImage(
-    b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAABGdBTUEAALGPC/xhBQAAACBj'
-    b'SFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAABv1BMVEUAAAD6twP2'
-    b'tQP1sgb0sgf0sQnvrwj2tAP0sgjzsQvxsA3vrxD1swbzsgnxsA3qrBfqrhjzsQr+1mz+2G7/'
-    b'yjnqqRvpqh3kpyTipSjhpSnhpCzhpCv2swX1sgX1sgf0sgjysAr0sgf0sgnysAvxsAzwrw/v'
-    b'rhDvrhHurRLtrRPtrRXsrBXzsQrysAzxrw3wrw7wshf4zV7/5Jb/4pH/4o3/34f/3oH/3Hz/'
-    b'23f+5aD/67H/6q3/6an/56T/5qD/5Zn/4o7/34P/3n//3Xv/23j/23X/2nH/2W3/12n/5Zr/'
-    b'5JT/45H/4Yr/4If/3oD/3Xz/3Xn/2nL/2W7/2Gr/12f/1mP/4Yv/34T/3X3/3Hn/23b/2nP/'
-    b'2nD/2Wz/12j/1mT/1WD/1Fv/4Ij/34X/34L/3n7/3Hr/3Hj/2Gz/12X/1WH/1F3/01j/0lT/'
-    b'34b/2XD/12r/12b/1F7/01r/0lb/0VL/0E7/2Gv/0lf/z0r/zkf/23P/1V//1Fz/0VT/0VD/'
-    b'z0v/zkj/zUT/zED/1mX/0lX/0VH/z03/zkn/zEH/yz3nqR3nqB7nqSDmpyHlpyLkpiPjpibi'
-    b'pSjgpCv///98hD39AAAAHHRSTlMAX+7+/t8g3/7+3xD+/v7fX/7v799f3/7+/u5f1BZOrQAA'
-    b'AAFiS0dElH9nShUAAAAHdElNRQfmAwYLKAOmA2fCAAAAAW9yTlQBz6J3mgAAANpJREFUGNNj'
-    b'YEAHjEwysswsrGxwAXZZOXkOBU4ubpgAj6ISr7IKn6qauoamlja/AIO8jqCunr6BoZGxiamZ'
-    b'uYUQg6WVtY2tnb2Do5Ozi6ubuweDp5e3g4+vo59/gGtgUHBIKIO3Q5hvuF9EZFR0TGxcfEIi'
-    b'Q1hSckpqWnp0TEZcZlZ2Ti5DXgpIc35QQWFWUXFJaRmDn396VGBQeUhoUXFFaVllFUNaVHV+'
-    b'Rlx8TW1OXX1DY1Mzg3B+hkcLUHNrW3tHU2eXCIOoWHdPb1//BPGJkyQkJ0tJMxAEADrdOlzH'
-    b'l346AAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDIyLTAzLTA2VDExOjQwOjAzKzAwOjAwE6MR0wAA'
-    b'ACV0RVh0ZGF0ZTptb2RpZnkAMjAyMi0wMy0wNlQxMTo0MDowMyswMDowMGL+qW8AAAAASUVO'
-    b'RK5CYII=')
+#Icono por https://www.freepik.com/
 
-#----------------------------------------------------------------------
-carpeta_mac = PyEmbeddedImage(
-    b'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAJBlWElm'
-    b'TU0AKgAAAAgABgEGAAMAAAABAAIAAAESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAAB'
-    b'AAAAXgEoAAMAAAABAAIAAIdpAAQAAAABAAAAZgAAAAAAAABIAAAAAQAAAEgAAAABAAOgAQAD'
-    b'AAAAAQABAACgAgAEAAAAAQAAABCgAwAEAAAAAQAAABAAAAAAjw+h1QAAAAlwSFlzAAALEwAA'
-    b'CxMBAJqcGAAAAgtpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADx4OnhtcG1ldGEgeG1sbnM6'
-    b'eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IlhNUCBDb3JlIDUuNC4wIj4KICAgPHJkZjpS'
-    b'REYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgt'
-    b'bnMjIj4KICAgICAgPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIKICAgICAgICAgICAg'
-    b'eG1sbnM6dGlmZj0iaHR0cDovL25zLmFkb2JlLmNvbS90aWZmLzEuMC8iPgogICAgICAgICA8'
-    b'dGlmZjpPcmllbnRhdGlvbj4xPC90aWZmOk9yaWVudGF0aW9uPgogICAgICAgICA8dGlmZjpQ'
-    b'aG90b21ldHJpY0ludGVycHJldGF0aW9uPjI8L3RpZmY6UGhvdG9tZXRyaWNJbnRlcnByZXRh'
-    b'dGlvbj4KICAgICAgICAgPHRpZmY6UmVzb2x1dGlvblVuaXQ+MjwvdGlmZjpSZXNvbHV0aW9u'
-    b'VW5pdD4KICAgICAgICAgPHRpZmY6Q29tcHJlc3Npb24+MTwvdGlmZjpDb21wcmVzc2lvbj4K'
-    b'ICAgICAgPC9yZGY6RGVzY3JpcHRpb24+CiAgIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+CqZd'
-    b'9jAAAAHtSURBVDgRpZI/S11BEMVndvfeF5AEJE2wEITkS2hlaWnh5xDBNl1AP41VQEiaVOkC'
-    b'qWy0ehIwaBoF/7y9u5vf2fBaA8m8d5nZnTlnzs6u2X+aH378flJmr3bNqzV+gwdrDX/388PR'
-    b'7tb7v/H7wefz9m7jrU1UupvVZjZatcubG6uXZ9vHe9tfniPx/U8XLQWHwG2kcwsqdwvExZuF'
-    b'wjIE81gs50BIB1SytDzdn6a7x2zjm3WbWrQnwFM1G/DgLROnSIyPeNnEvlTOWrGn6/lOijFQ'
-    b'FOlIIwppBgIAPnEkCdBMvLq2LWmtGosQgZ1oGUmqQQbAv5MUxXwiBG4VP5BbKA+T6hqzCrlC'
-    b'oEIYRugdr+QIYEbgTFd71FpjPapWBVhXxDy6XElemsi0RFiXO+AdcgEiRMKrpjGQZNMfukR2'
-    b'oSTLBFpHiELgRTYQ9/kA1JXrGBpomsgOnIF3ZIEuUitKYTVEDWw5uE5KXb8lfAWUSuEFUqhz'
-    b'jmx2AyRCtZYykelaO7MUkRNxQX2oXKo21FUkPId+z7p33lGXrVlInQYoIh1Tptq0tvrCNl5C'
-    b'J4NI9740ATILzUKCpFSVEiPSh5XR0vzq+uuPX7ebjUrXaKmutfD6kMdh2eHJFnLEoDP7OpZk'
-    b'l7z4JjGv+WZ8/2KL3yVaw1QrN60UAAAAAElFTkSuQmCC')
+'''
+Módulos que se cargan:
+wx para obtener las funciones que dibujan la interfaz
+sqlite3 para las funciones de la base de datos
+math para la conversión entre unidades
+os, sys y subprocess para las funciones de carga de programas y acceso a archivos
+psutil para obtener el acceso a las particiones y a su tamaño
+pathlib para obtener información de las carpetas y de los archivos que cuelgan de ellas
+'''
+import wx, sqlite3, math, os, sys, psutil, datetime,subprocess
+from pathlib import Path
 
-extraible_mac = PyEmbeddedImage(
-    b'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAJBlWElm'
-    b'TU0AKgAAAAgABgEGAAMAAAABAAIAAAESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAAB'
-    b'AAAAXgEoAAMAAAABAAIAAIdpAAQAAAABAAAAZgAAAAAAAACQAAAAAQAAAJAAAAABAAOgAQAD'
-    b'AAAAAQABAACgAgAEAAAAAQAAACCgAwAEAAAAAQAAACAAAAAA9t4+QgAAAAlwSFlzAAAWJQAA'
-    b'FiUBSVIk8AAAAgtpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADx4OnhtcG1ldGEgeG1sbnM6'
-    b'eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IlhNUCBDb3JlIDUuNC4wIj4KICAgPHJkZjpS'
-    b'REYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgt'
-    b'bnMjIj4KICAgICAgPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIKICAgICAgICAgICAg'
-    b'eG1sbnM6dGlmZj0iaHR0cDovL25zLmFkb2JlLmNvbS90aWZmLzEuMC8iPgogICAgICAgICA8'
-    b'dGlmZjpPcmllbnRhdGlvbj4xPC90aWZmOk9yaWVudGF0aW9uPgogICAgICAgICA8dGlmZjpQ'
-    b'aG90b21ldHJpY0ludGVycHJldGF0aW9uPjI8L3RpZmY6UGhvdG9tZXRyaWNJbnRlcnByZXRh'
-    b'dGlvbj4KICAgICAgICAgPHRpZmY6UmVzb2x1dGlvblVuaXQ+MjwvdGlmZjpSZXNvbHV0aW9u'
-    b'VW5pdD4KICAgICAgICAgPHRpZmY6Q29tcHJlc3Npb24+MTwvdGlmZjpDb21wcmVzc2lvbj4K'
-    b'ICAgICAgPC9yZGY6RGVzY3JpcHRpb24+CiAgIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+CqZd'
-    b'9jAAAATcSURBVFgJrVfLbiNFFL39brttd6dtJ5MQCRKxg1mChkiAkIBd2CD+gOV8Ap/CHyA2'
-    b'zAfALNAskNCM2AFK0IhMwiQIYjtO2v3inKouY2tmVumSy9VdXT733HNv3Wpbst4s3LLbTedT'
-    b'3t+m1c2PK4zsvDdz4jYPOSjDh4eHr332+RdfW5a1Xdf1bY0reGABqj797ttvvnzw4MGfjU1F'
-    b'YpUA553tnd37Bx9/+kmzqM3h7Z8ePboPwK/QcwO8SoDeuul4dADGsrsxkF4YmHW3Gmc3mZz8'
-    b'M5F0ODqgDfQC/QUFVAiSNN2uqlKiwBfIdivD5sfEKoEZD9NtzDG/lqFdVYDr7UGcbElVt2ac'
-    b'oKoBM47jO7gmgWUzBMjI2tvb64zHm5HUlVQVE7bFBszReLNLG8fHx3Mg02a9ysba3d0dRv0e'
-    b'7FdKAYagtQ7MXr8vOzs7o8a48s4ooG7CsDfudLtSl2XrChCzE3Wl3++PYexXZRBfawSCrj/2'
-    b'fR/CaAXMolZGYBLbDQIqsGyrBCzPdkeObSvv284BhpXYnm2/MgSWFwRpnhcSeG7rIaBDeZ5D'
-    b'hXAI91/Yhpyww9DfXGQ3Ip2g/W2IEGRZJmG3s0lbDYl6LQSDeGOYL1AlsWfbDgExC2AjCdNX'
-    b'KpBsxGlR5PC+/TpATGIn6ZAEjAJru8D2vCAtiwIBar8SEpPYnucyB5b1x4RAVcLBoK8I8Jho'
-    b'PQTAJIH+YLDRhEAlIgmYjLR7URSXJQ8qlIKWDiIF1nwRu9frJbg1ClirCth+GCYVKhZO49YJ'
-    b'EJPYYRDEDQHluGEi+/v7ke+6ARednDyT84sLRaKNs4BY5+cXioCHRKMto8xSgeHwTsrTnxXr'
-    b'38tL1c2iNkfLsoW2jo6OzohrcsBOkmjouS62is6BlxnF3hCLr4lKvJetMHN0BYtMHkF//oSz'
-    b'DmzEcZflWKlvFHCiaLBJ7xkCNp0H6lIb5K/RmkHfNDOE1/P8/p+dMarirxbU6jzoxTFPRIeL'
-    b'jQJOksQjbhOSYKO3q3D62kCqJfo50FlkdNPXfKfUCBj4XD3WCFQ46cdUYI2Am45G+Izk9PQZ'
-    b'fKBHirIC0OBLyDUZNFFDlSNmMGgK/K6WeLwbb21JMkpZDZXzRgF5fnbWKR1X7r3/gURdJCnf'
-    b'hkiC5wKvOMIVDU5DaGrQc3xOJUz9sHD0Oo6jYu65nnJkNp/L0fEfcvH8oqMBdAgIUxfFoppO'
-    b'JjKZzcV2fVksMllcX6MilpIjL/K8lILhoZ5goVTGvcobyFpiDUPIke67ePnwww6c6UqSbEgY'
-    b'dmV2dS2T6QSHUsagKLtUQF1kWY78gxF1GNXyy5MncjWbqcf0elkPOKMnlCIkw7KtetkcYiSA'
-    b'bPf9QI0o8fLOu/fU+wBJZvnCEFgeRuV0On16A4+vruZ4eczkrbt3tXf0DH1RgBxGfUbUag+p'
-    b'5KPxFQWoGCVwPA8KhBJFEcpvX7LFQuYIwTVsTC+nT7FIkTAKFI8f//zwjR9e//29Dz96cz6/'
-    b'0knUSFxiLOBdQXB6r0zovLAQEm5dGq6whn9A2BzE3UMYQoQh7ISYseX07Ex+fPj9b7SFCfXv'
-    b'iInJTiIDdP5xYIYySZZlGtdtNHqM1y35G/0v9Ev0gsbZaAypKl100jW7wzzH1K2ayjMgUJ5r'
-    b'dP4x4R/U6j8Osc4sO+rmLAAAAABJRU5ErkJggg==')
+#Se cargan los módulos de la interfaz, generados desde wxGlade
+from UIPrincipal import *
+from DialogoNuevaUnidad import *
+#Y las imágenes generadas por el script obtenido en
+#https://github.com/svn2github/wxPython/blob/master/3rdParty/XRCed/encode_bitmaps.py
+from imagenes import *
 
-#----------------------------------------------------------------------
-extraible_win = PyEmbeddedImage(
-    b'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAABGdBTUEAALGPC/xhBQAAACBj'
-    b'SFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAA1VBMVEUAAADX19nU'
-    b'2dnU19fU1NfP1NTc3eDU1NTPz9Ta3N7Z297Pz8/Y2t3W2dzHz8/Hx8/W2NrHx8d6enqgoKCs'
-    b'rKyvr6+tra3d3+Lh4+bc3uHa3d7h4uXg4uVFRUVGRkZ5eXk0NDQzMzN4eHiCgoI6Ojo5OTmK'
-    b'iopBQUE5ZjkmxSYyZzJCQkKLi4uSkpJJSUlAtEB2+3YgryBKSkqXl5dSUlJRUVFHZ0cpoylC'
-    b'bUJQUFCYmJicnJxZWVlYWFidnZ2fn59paWlhYWFiYmKwsLCurq6xsbH///83beHdAAAAF3RS'
-    b'TlMAX19fXzDvMDDv7yDf7yAg3yDf/t/+38DzZXIAAAABYktHREYXuvntAAAAB3RJTUUH5gMG'
-    b'CywapgQKBgAAAAFvck5UAc+id5oAAADQSURBVDjL7ZLHFoIwEEXtvWCPihoVxAZW7IUg/v8v'
-    b'mUxEVNi40oX3TPIm591lfL4/H+GvoBcqgdc+WEVvVEPPfbiGXESiTh+LIw8SYbtPpupeAkpn'
-    b'eJ8VRM8eiUIOhHzjQdPOJt/zILQwbuM2HZbYCXp3QOhKFFm6I7OVjyR3QegpitIfDBWbETsU'
-    b'GmMQVE3TJtMZvefaGyoIi6Wur9YbnbGEgW1Llx0I+4ObIzvHwwmEs0EIMYlpsuBpsiTEKIBQ'
-    b'vFickmU5G3tcy9/+ZL/DDUxqOdBRCymhAAAAJXRFWHRkYXRlOmNyZWF0ZQAyMDIyLTAzLTA2'
-    b'VDExOjQ0OjI2KzAwOjAwClWZcwAAACV0RVh0ZGF0ZTptb2RpZnkAMjAyMi0wMy0wNlQxMTo0'
-    b'NDoyNSswMDowMErgO1IAAAAASUVORK5CYII=')
+
+if sys.platform=='win32': #Se carga esta librería para obtener la etiqueta de la unidad seleccionada
+    import win32api
+    #Sólo en Windows. Se instala con pip install pypiwin32
+
+nombre_app = "indEXa 0.4β"
+
+#En las primeras versiones añadí la posibilidad de guardar los metadatos de los archivos MP3 (álbum, artista, nombre)
+#Era útil, pero significaba añadir un campo extra con etiquetas a la interfaz principal, complicándola. Y por eso lo quité
+#La función de la añadir datos a la base de datos aun tiene esta opción, pero puede deshabilitarse mediante el flag "metadatos"
+metadatos = False
+
+
+if metadatos: #Sólo si se activa metadatos se cargan estos dos módulos
+    from tinytag import TinyTag #Este sirve para obtener metadados de los mp3
+    import mimetypes #Y este para identificar el tipo de archivo y devolver su mimetype
+
 
 
 def devuelve_tamano(tamano):
+    #Convierte un tamano dado en bits a uno algo más legible.
     tamano = int(tamano)
     if tamano == 0:
         return "0B"
-    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB") #Escalera de tamaño. Cada 1024 hay un salto al siguiente
     i = int(math.floor(math.log(tamano, 1024)))
     p = math.pow(1024, i)
     s = round(tamano / p, 2)
     return "%s %s" % (s, size_name[i])
 
-def iniciadb():
+def imagen_arbol(tipo):
+    #Esta función devuelve una imagen para mostrarla en el árbol de directorios
+    #Dependiendo del tipo de entrada (archivo/carpeta) se devolverá una imagen distinta
+    #He creado esta función para que dependiendo del sistema operativo se cargue una imagen distinta
+    il = wx.ImageList(16, 16)
+    graficos_carpeta = {
+        #Dependendiendo del OS se carga o bien la imagen por defecto o bien alguna de las almacenadas en imagenes.py
+        'win32': carpeta_win.GetBitmap(),
+        'linux': wx.ArtProvider.GetBitmap(wx.ART_FOLDER, wx.ART_MENU, (16,16)),
+        'darwin': carpeta_mac.GetBitmap()
+        }
+    carpeta = graficos_carpeta[sys.platform]
+    fldropenidx = fldridx =il.Add(carpeta)
+    imgarchivo = wx.ArtProvider.GetBitmap(wx.ART_NORMAL_FILE, wx.ART_MENU, (16,16))
+    fileidx = il.Add(imgarchivo)
+    app.frame.tArbol.SetImageList(il)
+    
+    if tipo == "archivo":
+        respuesta = fileidx
+    else:
+        respuesta = fldridx
+    return respuesta
+
+
+
+def inicia_db():
+    '''
+    Esta función se usa para iniciar la base de datos y devolver el puntero de conexión se será global para toda la ejecución
+    El código está algo sucio y seguro que se puede optimizar, pero es el resultado de distintas ideas, 
+    añadidas en forma de parche al código existente
+    En primer lugar se define la carpeta donde se inicia el programa y el nombre de la base de datos
+    Esto es importante para facilitar la depuración, dado que si se encuentra un archivo "database.db" en la misma ruta del
+    ejecutable, se cargará ese archivo. En caso contrario, se cargará desde la ubicación por defecto (que varía dependiendo del sistema operativo)
+    '''
     home = Path.home()
     nombre_db = "database.db"
     global datapath
@@ -169,20 +116,17 @@ def iniciadb():
         data_path = "."
     else:
         data_path = str(ruta_db[sys.platform])
-        
     if not(Path(data_path).is_dir()):
         os.makedirs(data_path)
-    
     if os.path.exists(nombre_db):
         con = sqlite3.connect(nombre_db)
     else:
-
         if os.path.exists(data_path+'/'+nombre_db):
             con = sqlite3.connect(data_path+'/'+nombre_db)
-        
         else:
             con = sqlite3.connect(data_path+'/'+nombre_db)        
             cursorObj = con.cursor()
+            #Se usa el CREATE TABLE IF NOT EXISTS para crear la tabla al inicio, siempre que no haya sido creada ya
             instruccion_sql = """ CREATE TABLE IF NOT EXISTS ZSTORAGEITEM (
                                                 	ZPK	INTEGER,
                                                 	ZENT	INTEGER,
@@ -202,9 +146,7 @@ def iniciadb():
                                                 	ZALBUM	VARCHAR,
                                                 	PRIMARY KEY(ZPK)
                                                 ); """
-                                    
-
-                                    
+                                                   
             cursorObj.execute(instruccion_sql)
             instruccion_sql = """ CREATE TABLE IF NOT EXISTS ZTOTALES (
                                                 	ZPK	INTEGER,
@@ -212,11 +154,11 @@ def iniciadb():
                                                 	ZITEMS	INTEGER,
                                                 	PRIMARY KEY(ZPK)
                                                 ); """
-                                    
-
             cursorObj.execute(instruccion_sql)
 
-
+            #Ahora se crean los índices. 
+            #Las primeras versiones del programa no usaban índices y la búsqueda de los datos era increiblemente lenta
+            #En las nuevas versiones los índices aplicados sobre ciertas variables mejoran la usabilidad.
             instruccion_sql = """ CREATE INDEX IF NOT EXISTS ZSTORAGEITEM_ZPARENT_INDEX ON ZSTORAGEITEM (ZPARENT); """
             cursorObj.execute(instruccion_sql)
 
@@ -226,873 +168,755 @@ def iniciadb():
             instruccion_sql = """ CREATE INDEX IF NOT EXISTS ZSTORAGEITEM_ZENT_INDEX ON ZSTORAGEITEM (ZENT); """
             cursorObj.execute(instruccion_sql)
 
+            #Para terminar con la creación de la base de datos se incluye un auto_vacuum para que se optimicen las tablas
+            #tras cada commit. De todas formas algo no debo hacer bien porque no siempre funciona. De hecho, he tenido que 
+            #meter un Vacuum manual tras borrar una "Ubicación" porque de forma automática la tabla no se optimizaba.
             instruccion_sql = "PRAGMA auto_vacuum = INCREMENTAL"
             cursorObj.execute(instruccion_sql)
             instruccion_sql = "VACUUM"
             cursorObj.execute(instruccion_sql)
             con.commit()
-        
-
     return con
-
-conector = iniciadb()
-
-
-class NuevaUnidadDialog(wx.Dialog):
-    def __init__(
-            self, parent, id, title, size=wx.DefaultSize, pos=wx.DefaultPosition,
-            style=wx.DEFAULT_DIALOG_STYLE, name='dialog'
-            ):
-
-        wx.Dialog.__init__(self)
-        self.Create(parent, id, title, pos, size, style, name)
-
-
-        sizer = wx.BoxSizer(wx.VERTICAL)
-
-        label = wx.StaticText(self, -1, "Añadir nueva unidad")
-        sizer.Add(label, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
-        label.SetToolTip("Unidad a escanear. Puedes seleccionar una carpeta utilizando el primer ítem de la lista (Añadir ubicación...)")
-
-
-        box = wx.BoxSizer(wx.HORIZONTAL)
-
-        self.selUnidades = wx.ListCtrl(self, wx.ID_ANY, style=wx.LC_HRULES | wx.LC_REPORT | wx.LC_VRULES)
-        self.selUnidades.AppendColumn("Unidades", format=wx.LIST_FORMAT_LEFT, width=-1)
-        self.selUnidades.Bind(wx.EVT_LIST_ITEM_SELECTED, self.unidad_seleccionada)
-
-
-        box.Add(self.selUnidades, 1, wx.ALIGN_CENTRE|wx.ALL, 5)
-
-        sizer.Add(box, 0, wx.EXPAND|wx.ALL, 5)
-
-        box = wx.BoxSizer(wx.HORIZONTAL)
-
-        label = wx.StaticText(self, -1, "Nombre:")
-        box.Add(label, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
-
-        self.etiquetaUnidad = wx.TextCtrl(self, -1, "", size=(80,-1))
-        box.Add(self.etiquetaUnidad, 1, wx.ALIGN_CENTRE|wx.ALL, 5)
-        self.etiquetaUnidad.SetToolTip("Escribe el nombre/etiqueta de la unidad seleccionada")
-
-
-        sizer.Add(box, 0, wx.EXPAND|wx.ALL, 5)
-
-        line = wx.StaticLine(self, -1, size=(20,-1), style=wx.LI_HORIZONTAL)
-        sizer.Add(line, 0, wx.EXPAND|wx.RIGHT|wx.TOP, 5)
-        
-        self.chkunidades = wx.CheckBox(self, -1, "Mostrar todas las unidades")
-        sizer.Add(self.chkunidades, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
-        self.chkunidades.Bind(wx.EVT_CHECKBOX, self.eventocheckbox)
-        self.chkunidades.SetToolTip("Actívalo para mostrar unidades de sistema u ocultas")
-        
-
-
-        line2 = wx.StaticLine(self, -1, size=(20,-1), style=wx.LI_HORIZONTAL)
-        sizer.Add(line2, 0, wx.EXPAND|wx.RIGHT|wx.TOP, 5)
-
-        btnsizer = wx.StdDialogButtonSizer()
-
-
-
-        self.btnAdd = wx.Button(self, wx.ID_APPLY, "Añadir")
-        btnsizer.AddButton(self.btnAdd)
-        self.btnAdd.Bind(wx.EVT_BUTTON, self.btnAnadir)
-
-
-        btn = wx.Button(self, wx.ID_CANCEL)
-        btnsizer.AddButton(btn)
-        btnsizer.Realize()
-        
-        
-
-        sizer.Add(btnsizer, 0, wx.ALL, 5)
-        wx.Button.Disable(self.btnAdd)
-
-
-
-        self.SetSizer(sizer)
-        sizer.Fit(self)
-        self.lista_unidades(False)
-        
-    def lista_unidades(self,todas):
-        if todas:
-            discos = psutil.disk_partitions(all=True)
+    
+    
+def anade_a_la_base_de_datos(ruta, unidad,tamano, ventana):
+    
+    cursorObj = conector.cursor()
+    max = 100
+    dlg = wx.ProgressDialog("Añadiendo datos a la base de datos",
+                           "Este proceso puede durar unos minutos",
+                           maximum = max,
+                           parent=ventana,
+                           style = 0
+                            | wx.PD_APP_MODAL
+                            #| wx.PD_CAN_ABORT
+                            #| wx.PD_CAN_SKIP
+                            #| wx.PD_ELAPSED_TIME
+                            #| wx.PD_ESTIMATED_TIME
+                            #| wx.PD_REMAINING_TIME
+                            | wx.PD_AUTO_HIDE
+                            )
+    try: #Toda la función de añadir se ejecuta en un try. Si falla, se muestra un mensaje de error reconocible
+        todas_las_carpetas={}
+        tamano_total = tamano[1]
+        tamano_sumado = 0
+        #OJO, eliminar la línea de abajo, que si no se borra la DB en cada ejecución. Sólo para depuración
+        #cursorObj.execute('DELETE FROM ZSTORAGEITEM')
+        #cursorObj.execute('DELETE FROM ZTOTALES')
+        cursorObj.execute('SELECT * FROM ZTOTALES WHERE ZPK=1')
+        rows = cursorObj.fetchall()
+        if rows:
+            valor_id = rows[0][2]+1
         else:
-            discos = psutil.disk_partitions(all=False)
-            
-        self.selUnidades.ClearAll()
-
-        self.selUnidades.InsertColumn(0, "Unidades",width = 150)
-        self.selUnidades.Append(("Añadir ubicación...",))
-        
-        self.selUnidades.SetItemData(0,0)
-        for disco in discos:
-            if (("rootfs" in disco[3]) or ("dontbrowse" in disco[3]) or ("fixed" in disco[3])) and not(todas):
+            valor_id = 1
+        '''
+        Explico lo de arriba. 
+            valor_id se usa para saber en qué punto de la base de datos se empiezan a añadir nuevos datos.
+            Si cuando se hace la búsqueda SQL rows está vacío (es decir, no hay ningún dato), el valor se establece a 1
+            En caso contrario, se usa la posición del último dato añadido + 1 para empezar a añadir datos nuevos.
+            Este valor se actualizará cuando se terminen de añadir los nuevos datos a la base de datos. 
+        '''        
+        valor_zent = 0
+        valor_totalbytes = tamano[0]
+        valor_bytesusados = tamano[1]
+        valor_isfolder = 0
+        valor_id_unidad = valor_id
+        fecha_creacion = datetime.datetime.now().timestamp()
+        datos = (valor_id, valor_zent, valor_totalbytes, valor_bytesusados, valor_isfolder, fecha_creacion, ruta, unidad)
+        cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZUSEDBYTES ,ZISFOLDER, ZCREACION, ZFULLPATH, ZNAME) VALUES( ?, ?, ?, ?, ?, ?, ?, ?)''', datos)
+        album = ""
+        artista = ""
+        titulo = ""
+        ficheros_analizados = 0
+        #Se establece que la ruta principal tiene el valor 0. De ahí colgaran todas las ramas del árbol de carpetas
+        todas_las_carpetas[ruta]=valor_id
+        for path in Path(ruta).rglob('*'):  #Se obtienen todos los datos de la carpeta
+            ruta_corregida = path.parent.as_posix()
+            size = 0
+            size_int = 0
+            try: #Tratamos de obtener el tamaño del archivo. Si no es posible (porque no se tiene permiso), se obvia el dato
+                size = str(path.stat().st_size)
+                size_int = path.stat().st_size
+            except:
                 pass
-            else:
+        
+            valor_id += 1
+            tamano_sumado = tamano_sumado+size_int
+            #Si se actualizaran los valores en cada iteración el programa iría lento. Por eso se actualiza cada 50 búsquedas 
+            if ((ficheros_analizados%50) == 0):
+                wx.Yield() #Forzamos el dibujado
                 try:
-                    espacio = psutil.disk_usage(disco[1])
-                    usado = espacio[1]
-                    self.selUnidades.Append((disco[1],))
-                    self.selUnidades.SetItemData(self.selUnidades.GetItemCount()-1,usado)
+                    valor_porciento = int((tamano_sumado/tamano_total)*100)
+                    cadena = "Procesando "+devuelve_tamano(tamano_sumado)+" de "+devuelve_tamano(tamano_total)+"\n"+str(ficheros_analizados)+" ficheros analizados."                
+                    dlg.Update(valor_porciento, cadena)
                 except:
                     pass
 
-    def unidad_seleccionada(self, evt):
-        ind = self.selUnidades.GetFirstSelected()
-        if ind >=0:
-            item = self.selUnidades.GetItem(ind,0)
-            unidad = item.GetText()
-            if unidad == "Añadir ubicación...":
-                dlg = wx.DirDialog (None, "Selecciona una carpeta", "",wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST)
-                if dlg.ShowModal() == wx.ID_OK:
-                    dirname = dlg.GetPath()
-                    unidad = str(Path(dirname).name)
-                    self.selUnidades.SetItemText(0,dirname)
-                    self.etiquetaUnidad.Clear()
-                    self.etiquetaUnidad.write(unidad)
-                    wx.Button.Enable(self.btnAdd)
-                else:
-                    pass
-                dlg.Destroy()
-            else:
-                wx.Button.Enable(self.btnAdd)
-                self.etiquetaUnidad.Clear()
-                if sys.platform=='win32':
-                    etiquetawindows = win32api.GetVolumeInformation(unidad)[0]
-                    if len(etiquetawindows)>0:
-                        self.etiquetaUnidad.write(etiquetawindows)
-                    else:
-                        self.etiquetaUnidad.write(unidad)
-                else:
-                    self.etiquetaUnidad.write(str(Path(unidad).name))
-            
-    def btnAnadir(self, evt):
-        ind = self.selUnidades.GetFirstSelected()
-        if ind >=0 and self.etiquetaUnidad.GetLineText(0):
-            item = self.selUnidades.GetItem(ind,0)
-            ruta = item.GetText()
-            ruta = Path(ruta).as_posix()
-            tamano = psutil.disk_usage(ruta)
-            unidad = self.etiquetaUnidad.GetLineText(0)
-            self.add_to_db(ruta, unidad,tamano)
-            self.Destroy()
-            
-    def eventocheckbox(self, evt):
-        if self.chkunidades.GetValue():
-            self.lista_unidades(True)
-        else:
-            self.lista_unidades(False)
-        
-            
-    def tamano_carpeta(self, carpeta):
-        cursorObj = conector.cursor()
-        datos = (carpeta,)
-        tamano_total = 0
-        cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPARENT=?',datos)
-        rows = cursorObj.fetchall()
-        for row in rows:
-            tipo = row[6]
-            id_carpeta = row[0]
-            if tipo == 1:
-                tamano = self.tamano_carpeta(id_carpeta)
-                datos_update = (tamano, id_carpeta,)
-                cursorObj.execute('UPDATE ZSTORAGEITEM SET ZTOTALBYTES=? WHERE ZPK=?',datos_update)
-            else:
-                tamano = row[2]            
-            tamano_total = tamano_total + tamano
-        return tamano_total        
-            
-            
-    def add_to_db(self, ruta, unidad,tamano):
-        
-        cursorObj = conector.cursor()
-    
-        max = 100
-        dlg = wx.ProgressDialog("Añadiendo datos a la base de datos",
-                               "Este proceso puede durar unos minutos",
-                               maximum = max,
-                               parent=self,
-                               style = 0
-                                | wx.PD_APP_MODAL
-                                #| wx.PD_CAN_ABORT
-                                #| wx.PD_CAN_SKIP
-                                #| wx.PD_ELAPSED_TIME
-                                #| wx.PD_ESTIMATED_TIME
-                                #| wx.PD_REMAINING_TIME
-                                | wx.PD_AUTO_HIDE
-                                )
-        try:
-
-            todas_las_carpetas={}
-            tamano_total = tamano[1]
-            tamano_sumado = 0
-
-            #OJO, eliminar la línea de abajo, que si no se borra la DB en cada ejecución
-            #cursorObj.execute('DELETE FROM ZSTORAGEITEM')
-            #cursorObj.execute('DELETE FROM ZTOTALES')
-            cursorObj.execute('SELECT * FROM ZTOTALES WHERE ZPK=1')
-            rows = cursorObj.fetchall()
-
-            if rows:
-                valor_id = rows[0][2]+1
-            else:
-                valor_id = 1
-
-            valor_zent = 0
-            valor_totalbytes = tamano[0]
-            valor_bytesusados = tamano[1]
-            valor_isfolder = 0
-            valor_id_unidad = valor_id
-            fecha_creacion = datetime.datetime.now().timestamp()
-            datos = (valor_id, valor_zent, valor_totalbytes, valor_bytesusados, valor_isfolder, fecha_creacion, ruta, unidad)
-            cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZUSEDBYTES ,ZISFOLDER, ZCREACION, ZFULLPATH, ZNAME) VALUES( ?, ?, ?, ?, ?, ?, ?, ?)''', datos)
-
-
+            #Si se encuentra un archivo de música, se añaden los metadatos a la base de datos
             album = ""
             artista = ""
             titulo = ""
-            ficheros_analizados = 0
-
-            #Se establece que la ruta principal tiene el valor 0. De ahí colgaran todas las ramas del árbol de carpetas
-            todas_las_carpetas[ruta]=valor_id
-
-
-            for path in Path(ruta).rglob('*'):  
-                ruta_corregida = path.parent.as_posix()
-                size = 0
-                size_int = 0
-                try:
-                    size = str(path.stat().st_size)
-                    size_int = path.stat().st_size
-                except:
-                    pass
-            
-                valor_id += 1
-                tamano_sumado = tamano_sumado+size_int
-                #Si se actualizaran los valores en cada iteración el programa iría lento. Por eso se actualiza cada 50 búsquedas 
-                if ((ficheros_analizados%50) == 0):
-            
-                    wx.Yield()
+            if metadatos: #Sólo si el flag metadatos está en True
+                if ((path.suffix) == '.mp3' or (path.suffix) == '.flac'):
                     try:
-                    
-                        valor_porciento = int((tamano_sumado/tamano_total)*100)
-                        cadena = "Procesando "+devuelve_tamano(tamano_sumado)+" de "+devuelve_tamano(tamano_total)+"\n"+str(ficheros_analizados)+" ficheros analizados."
-                        #dlg.Update(0,path.name)            
-                    
-                        dlg.Update(valor_porciento, cadena)
+                        tag = TinyTag.get(path)
+                        album = tag.album
+                        artista = tag.artist
+                        titulo = tag.title
                     except:
                         pass
-            
 
-                #Si se encuentra un archivo de música, se añaden los metadatos a la base de datos
-                album = ""
-                artista = ""
-                titulo = ""
-                if metadatos:    
-                    if ((path.suffix) == '.mp3' or (path.suffix) == '.flac'):
-                        try:
-                            tag = TinyTag.get(path)
-                            album = tag.album
-                            artista = tag.artist
-                            titulo = tag.title
-                        except:
-                            pass
+            valor_parent = todas_las_carpetas[path.parent.as_posix()]
+            valor_partofcatalog = valor_id_unidad
+            valor_zent = 1
+            if not(path.is_dir()):
+                valor_isfolder = 0
+                ficheros_analizados += 1    
+                valor_zkind = 'archivo'            
+                if metadatos: #De nuevo, si metadatos está activado, se obtiene el valor
+                    try:
+                        valor_zkind = mimetypes.MimeTypes().guess_type(path)[0]
+                    except:
+                        pass
+            else:
+                valor_zkind = 'carpeta'
+                valor_isfolder = 1
+                todas_las_carpetas[path.as_posix()]=valor_id
+            datos = (valor_id, valor_zent, size, valor_isfolder, valor_parent, valor_partofcatalog, str(path.as_posix()), str(path.name), valor_zkind, titulo, artista, album)
+            cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZISFOLDER, ZPARENT, ZPARTOFCATALOG, ZFULLPATH, ZNAME, ZKIND, ZTITULO, ZARTISTA, ZALBUM) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', datos)
+        datos = (1,"StorageItem", valor_id)
+        #La orden de abajo actualiza el total de items de la base de datos. Este valor se usará en futuras adiciones como punto de entrada
+        cursorObj.execute('DELETE FROM ZTOTALES')
+        cursorObj.execute('''INSERT INTO ZTOTALES(ZPK, ZNAME, ZITEMS) VALUES(?, ?, ?)''', datos)
+        # --= Se terminan de añadir archivos =--
+        # --= Ahora se añade lo que ocupa cada carpeta =--
+        tamano_carpeta(valor_id_unidad)
+        conector.commit()
+        dlg.Destroy()
+
+    except Exception as e: 
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        a = str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno)
+        wx.MessageBox(a, 'Warning', wx.OK | wx.CANCEL | wx.ICON_WARNING)
+        dlg.Update(0,str(e))    
+    
+
+def carga_tUnidades():
+    #Esta función inicia la ejecución visual del programa. Se encarga listar todas las "Ubicaciones/Unidades" (no se como llamarlo)
+    #y añadirlas a la lista de la izquierda. Antes de todo, y al igual que en una función definida anteriormente, se crean
+    #imágenes que varian según el sistema operativo que se esté ejcutando.
+    cursorObj = conector.cursor()
+    app.frame.lUnidades.ClearAll()
+    app.frame._il = wx.ImageList(32, 32)
+    graficos_extraible = {
+        'win32': extraible_win.GetBitmap(),
+        'linux': wx.ArtProvider.GetBitmap(wx.ART_HARDDISK, wx.ART_MENU, (32,32)),
+        'darwin': extraible_mac.GetBitmap()
+        }
+    extraible = graficos_extraible[sys.platform]
+    img_idx = app.frame._il.Add(extraible)
+    app.frame.lUnidades.SetImageList(app.frame._il, wx.IMAGE_LIST_SMALL)
+    valores = []
+    #Se buscan los valores donde ZENT sea 0 (ZENT define si se trata de una unidad principal o de otro dato)
+    cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZENT=0')
+    rows = cursorObj.fetchall()
+    app.frame.lUnidades.InsertColumn(0, "Unidades",width = 150)
+    for row in rows:  
+        #Se recorren los resultados y se añaden las distintas unidades a la lista
+        app.frame.lUnidades.Append((row[11],))
+        app.frame.lUnidades.SetItemData(app.frame.lUnidades.GetItemCount()-1,row[0]) 
+        app.frame.lUnidades.SetItemImage(app.frame.lUnidades.GetItemCount() - 1, img_idx) 
+
+def seleccion_unidades(evt):
+    #Es la rutina que se ejecuta cuando se selecciona una unidad en el listado de la izquierda. En primer lugar se comprueba
+    #que en verdad hay un valor seleccionado (con ind>=0). Si esto es así, se obtiene el valor del item y se llama a la función
+    #carga_arbol con este valor. La función carga_arbol se encargará de dibujar el arbol de carpetas.
+    ind = app.frame.lUnidades.GetFirstSelected()
+    if ind >=0:
+        item = app.frame.lUnidades.GetItem(ind,0)
+        carga_arbol(item.GetText())
+        app.frame.eBuscar.SetValue("")
+
+def carga_arbol(unidad):
+    #Esta fué la primera función que creé. Al igual que alguna otra, ha ido cambiando y creciendo mediante parches, por lo que
+    #el código no es del todo limpio. Así y todo, funciona tal y como quería y de forma rápida. 
+    cursorObj = conector.cursor() # Se crea el objeto cursor, para llamar a la base de datos. 
+    #¿Es mejor hacerlo en cada función o crear uno en general? Ni idea, pero lo dejo así
+    app.frame.lArbol.Show(False)
+    app.frame.tArbol.Show(True)
+    #Se oculta el listado de resultados y se muestra el árbol de carpetas
+    app.frame.pPrincipal.Layout()
+    app.frame.tArbol.DeleteAllItems()    #Se borra cualquier item que existiera
+    app.frame.root = app.frame.tArbol.AddRoot(unidad) #Se nombra la primera rama con el nombre de la unidad.
+    app.frame.tArbol.SetPyData(app.frame.root ,"Principal") 
+    valor_a_buscar = (0,unidad,)
+    cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZENT=? AND ZNAME=?',valor_a_buscar)
+    #La orden de arriba busca la unidad en la base de datos para a continuación sacar los datos de la fecha de creación
+    #y del espacio libre/total
+    rows = cursorObj.fetchall()
+    ruta=rows[0][0]
+    fecha_creacion = rows[0][8]
+    espacio_total = rows[0][2]
+    espacio_usado = rows[0][3]
+    #En las primeras versiones existían registros que no tenían aun añadida la fecha de creación. Por eso añadí este try.
+    #Actualmente todas las bases de datos nuevas se generan con esta información, pero mantengo el try por compatibilidad.
+    try:
+        fecha_creacion = datetime.datetime.fromtimestamp(fecha_creacion).strftime('%d-%m-%Y a las %H:%M:%S')
+        porciento = str(round((espacio_usado/espacio_total)*100,2))
+        texto = "Creado el " + fecha_creacion + ". Utilizados "+devuelve_tamano(espacio_usado)+ " de "+devuelve_tamano(espacio_total) + " (" +porciento+"%)"
+    except:
+        texto = "Utilizados "+devuelve_tamano(espacio_usado)+ " de "+devuelve_tamano(espacio_total)
+    #Se añaden los datos a la barra de estado
+    app.frame.barraestado.SetStatusText(texto)
+    #OJO, aquí se ejecutan las dos funciones que forman el corazón de todo esto. "lista_carpeta" y "nueva_carpeta". 
+    #A continuación explicaré qué hacen pero para resumir lista_carpeta general el contenido de una "carpeta" de la base de datos
+    #y nueva_carpeta pinta su contenido en el arbol de directorios de la derecha (llamado tArbol)
+    carpetas_inicio = lista_carpeta(ruta)
+    nueva_carpeta(carpetas_inicio,app.frame.root)
+    #Una vez extraidos los datos y pintados, se "abre" la carpeta.
+    app.frame.tArbol.Expand(app.frame.root)
+
+def lista_carpeta(ruta):
+    '''
+    Esta función es vital pero a la vez es realmente sencilla. La base de datos tiene todos los registros de forma contígua,
+    pero identificados como carpetas o como archivos. Asimismo cada registro tiene los datos sobre "a quién pertenece".
+    Por ejemplo, si el archivo "datos.txt" cuelga de la carpeta "cosas", el registro de "datos.txt" tiene un campo que 
+    indica que es un archivo y que además su "parent" o carpeta contenedora es "cosas". 
+    Esta función facilita este tipo de búsquedas. Se proporcia una ruta (o carpeta "parent") y se devuelve una variable que contiene
+    todos los archivos de esa carpeta, junto con sus valores añadidos (tamaño, tipo, nombre, etc)
+    '''
+    cursorObj = conector.cursor()
+    valores = []
+    valor_a_buscar = (ruta,)
+    #Se hace la búsqueda de todos los archivos que pertenezcan a la carpeta pasada como "ruta".
+    cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPARENT=?',valor_a_buscar)
+    rows = cursorObj.fetchall()
+    #Se recorren los valores y se genera una variable "fila" que contendrá un diccionario con todos sus datos
+    for row in rows:
+        #Lo que hay abajo es un hack chungo. El valor del septimo campo de la tabla puede estar vacío o con datos
+        #Si tiene datos, es una carpeta, si no, un archivo. 
+        #Igual en versiones más avanzadas lo arreglo, pero por ahora cumple su cometido.
+        if not(row[6]):
+            carpeta=0
+        else:
+            carpeta=1
+        fila = {
+          "nombre": row[11],
+          "tipo": row[12],
+          "ID": row[0],
+          "tamano": row[2],
+          "carpeta":carpeta,
+          "pista": row[1],
+          "artista": row[1],
+          "disco": row[1],
+          "zparent": row[7],
+          "ruta_completa": row[10]
+        }
+        #Se añade el diccionario al tupple valores
+        valores.append(fila)
+    return valores
+
+def nueva_carpeta(archivos, parent_iid):
+    '''
+    Esta es la segunda función interesante de la parte del listado.
+    El origen es una función recursiva que encontré en stackoverflow, que recorría una carpeta y sacaba el resultado de todas
+    sus subcarpetas. 
+    Luego, usé la idea para esta parte. La función recibe una variable con los archivos contenidos en una carpeta ("archivos")
+    y la "carpeta" a la que pertenecen ("parent_iid" -nombre heredado de la función original-).
+    Luego, mira el contendido de dichos archivos y separa los datos del diccionario. 
+    Con esos datos discrimina lo recibido; si es una carpeta, dibuja una carpeta en tArbol, le pone los iconos, el tamaño y 
+    añade un valor dummy llamado "Cargando..." para que la carpeta se pinte con contenido.
+    Si es un archivo, lo pinta junto con todos los datos.
+    Como digo, en principio la función era recursiva, y si se trataba de una carpeta se volvía a llamar a si misma para
+    seguir dibujando el árbol de directorios. El problema era que cuando habían miles de archivos la carga se demoraba varios
+    segundos. Por esta razón dejé la recursividad y usé el dummy "Cargando...". Ahora la carpeta está vacía y sólo se carga el
+    contenido cuando se pulsa sobre el nombre de la carpeta. De esta forma se acelera la carga de los datos.
+    
+    También se ha añadido una opción para ocultar archivos ocultos o carpetas de sistema. Estas carpetas se definen en la variable
+    llamada "prohibidas"
+    '''
+    for datos in archivos:
+        carpeta=datos["carpeta"]
+        tipo = datos["tipo"]
+        id = datos["ID"]
+        tamano = datos["tamano"]
+        pista = datos["pista"]
+        artista = datos["artista"]
+        disco = datos["disco"]
+        zparent=datos["zparent"]
+        nombre = datos["nombre"]
+        ruta_completa = datos["ruta_completa"]
+        prohibidas = ["$RECYCLE.BIN","System Volume Information"]
+        muestra_ocultos = app.frame.menubar.muestra_ocultos.IsChecked()
+        if (nombre[0:1]=='.' or nombre in prohibidas) and not(muestra_ocultos):  #Se usa para no mostrar archivos ocultos
+            pass
+        else:
+            if (carpeta == 1):
+                subdir_iid = app.frame.tArbol.AppendItem(parent_iid,nombre)
+                app.frame.tArbol.SetItemText(subdir_iid, devuelve_tamano(tamano), 1)
+                app.frame.tArbol.SetPyData(subdir_iid,(carpeta, subdir_iid,"FALSE",id))  
+                app.frame.tArbol.SetItemImage(subdir_iid, imagen_carpeta, which = wx.TreeItemIcon_Normal)
+                app.frame.tArbol.SetItemImage(subdir_iid, imagen_carpeta, which = wx.TreeItemIcon_Expanded)
+                app.frame.tArbol.AppendItem(subdir_iid, "Cargando...")
+                colorletras = wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOXTEXT)
+                app.frame.tArbol.SetItemTextColour(subdir_iid,colorletras)
+            else:
+                item = app.frame.tArbol.AppendItem(parent_iid,nombre)
+                app.frame.tArbol.SetItemText(item, devuelve_tamano(tamano), 1)
+                app.frame.tArbol.SetItemImage(item, imagen_archivo, which = wx.TreeItemIcon_Normal)
+                app.frame.tArbol.SetPyData(item,(carpeta,id,nombre,tamano,zparent,tipo,ruta_completa)) 
+                colorletras = wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOXTEXT)
+                app.frame.tArbol.SetItemTextColour(item,colorletras)
 
 
+def extraer_datos_tvResultados(item):
+    #Esta es la función que mencionaba en el comentario anterior. Se ejecuta al pulsar sobre un item de tArbol
+    #Si es un archivo extrae su información y se es una carpeta ejecuta de nuevo "nueva_carpeta" para pintar su contenido.
+    cursorObj = conector.cursor()
+    valor = app.frame.tArbol.GetPyData(item)
+    
+    #Se comprueba si "valor" es distinto a "Principal". Esto es así para evitar ejecutar el resto de función si lo que
+    #se ha seleccionado es la rama principal del árbol de carpetas.
+    if (valor!="Principal"):
+        #De nuevo lo que viene ahora corrige un error del diseño inicial. El valor de ZPK está en una posición distinta cuando
+        #es un archivo o una carpeta ::facepalm:: Por ello, si es una carpeta se usa el valor en posición 3 y si no, en 1
+        if (valor[0]==1):
+            valor_ZPK = valor[3]  
+        else:
+            valor_ZPK = valor[1]            
+        valor_a_buscar = (valor_ZPK,)
+        cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
+        rows = cursorObj.fetchall()
+        rows = rows[0]
+        #Cambio la barra por un triángulo porque queda mejor.
+        texto = rows[10].replace("/"," ▸ ")
+        app.frame.barraestado.SetStatusText(texto)
+    if (valor[0]==1) and (valor[2]=="FALSE"):
+        #El valor[2] comprueba que la función no se ha ejecutado con anterioridad. Si se ha ejecutado antes el árbol ya está
+        #dibujado y no es necesario dibujarlo de nuevo.
+        idd = valor[1]
+        #Con la orden que sigue se borra el item "Cargando..."
+        app.frame.tArbol.DeleteChildren(idd)
+        ruta = valor[3]
+        carpetas_inicio = lista_carpeta(ruta)
+        nueva_carpeta(carpetas_inicio,idd)
+        #Se establece el valor[3] en TRUE para que no se vuelva a dibujar el árbol.
+        app.frame.tArbol.SetPyData(idd,(valor[0],valor[1], "TRUE",valor[3]))         
 
-                valor_parent = todas_las_carpetas[path.parent.as_posix()]
-                valor_partofcatalog = valor_id_unidad
-                valor_zent = 1
+def muestra_archivos_ocultos(event):
+    #Función para mostrar archivos ocultos
+    #Se borran todos los items porque se tienen que volver a dibujar
+    app.frame.tArbol.DeleteAllItems()
+    #Se obtiene el índice del valor seleccionado, para dibujarlo de nuevo 
+    ind = app.frame.lUnidades.GetFirstSelected()
+    if ind >=0:
+        item = app.frame.lUnidades.GetItem(ind,0)
+        #Y se vuelve a lanzar la función
+        carga_arbol(item.GetText())
 
-                if not(path.is_dir()):
-                    valor_isfolder = 0
-                    ficheros_analizados += 1    
-                    valor_zkind = 'archivo'            
-                    if metadatos:
-                        try:
-                            valor_zkind = mimetypes.MimeTypes().guess_type(path)[0]
-                        except:
-                            pass
-                    
-                else:
-                    valor_zkind = 'carpeta'
-                    valor_isfolder = 1
-                    todas_las_carpetas[path.as_posix()]=valor_id
-        
-                datos = (valor_id, valor_zent, size, valor_isfolder, valor_parent, valor_partofcatalog, str(path.as_posix()), str(path.name), valor_zkind, titulo, artista, album)
-                cursorObj.execute('''INSERT INTO ZSTORAGEITEM(ZPK, ZENT, ZTOTALBYTES, ZISFOLDER, ZPARENT, ZPARTOFCATALOG, ZFULLPATH, ZNAME, ZKIND, ZTITULO, ZARTISTA, ZALBUM) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', datos)
+def iniciar_busqueda(evt):
+    cursorObj = conector.cursor()
+    #Debido a que esta función puede tardar un rato en ejecutarse, lo que hago es mostrar un mensaje de espera en la tabla principal
+    #El proceso es ocultar tArbol, mostrar lArbol, borrar el contenido, poner el mensaje de espera y cuando termine de realizar
+    #la búsqueda, borrar de nuevo y escribir el resultado.
+    app.frame.lArbol.Show(True)
+    app.frame.tArbol.Show(False)
+    app.frame.lArbol.DeleteAllItems()
+    app.frame.lArbol.Append(("Buscando...",))
+    app.frame.lArbol.Append(("",))
+    app.frame.lArbol.Append(("Por favor, espera...",))
+    #Con estas dos ordenes se fuerza el dibujado aunque no se haya salido del loop principal
+    app.frame.pPrincipal.Layout()
+    wx.Yield()
+    
+    #El símbolo "%" delante del valor a buscar equivale a un "*". Es decir, se busca el término independientemente de lo que tenga
+    #por delante o por detrás.
+    valor_a_buscar = ("%"+evt.GetString()+"%",)
+    cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZNAME LIKE ?',valor_a_buscar)
+    rows = cursorObj.fetchall()
+    app.frame.lArbol.DeleteAllItems()
+    #Esta parte no tiene mucho misterio. Se recorre el resultado y se pintan los datos en lArbol.
+    for row in rows:
+        if row[11]:
+            try:
+                valor_a_buscar = (row[9],)
+                cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
+                rows = cursorObj.fetchall()
+                unidad = rows[0][11]
+            except:
+                unidad = ""
+            datos = (row[11],devuelve_tamano(row[2]),unidad, row[10])
+            app.frame.lArbol.Append(datos)
 
-            datos = (1,"StorageItem", valor_id)
-            cursorObj.execute('DELETE FROM ZTOTALES')
-            cursorObj.execute('''INSERT INTO ZTOTALES(ZPK, ZNAME, ZITEMS) VALUES(?, ?, ?)''', datos)
-        
-            # --= Se terminan de añadir archivos =--
-            # --= Ahora se añade lo que ocupa cada carpeta =--
-            self.tamano_carpeta(valor_id_unidad)
-        
-            conector.commit()
+def tamano_carpeta(carpeta):
+    #Esta función devuelve el tamaño de una carpeta. Cuando se añade una unidad a la base de datos, antes de ejecutar el commit
+    #se llama a esta función. Esta suma el contenido de cada carpeta de forma recursiva, devolviendo el tamaño total de la carpeta
+    cursorObj = conector.cursor()
+    datos = (carpeta,)
+    tamano_total = 0
+    cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPARENT=?',datos) #Se buscan todos los archivos que pertenecen a la carpeta
+    rows = cursorObj.fetchall()
+    for row in rows:
+        tipo = row[6]
+        id_carpeta = row[0]
+        if tipo == 1:
+            tamano = tamano_carpeta(id_carpeta) #Si se trata de una carpeta (tipo 1), se vuelve a llamar a la función
+            datos_update = (tamano, id_carpeta,)
+            cursorObj.execute('UPDATE ZSTORAGEITEM SET ZTOTALBYTES=? WHERE ZPK=?',datos_update)
+        else:
+            tamano = row[2]            
+        tamano_total = tamano_total + tamano #Y se suma el tamaño al tamaño total
+    return tamano_total  
+
+
+def gestionar_unidad_seleccionada(evt, ventana):
+    #Esta función discrimina entre dos tipos de acciones. Si se selecciona una partición, se coge el nombre y se añade a etiquetaUnidad
+    #Por contra, si se selecciona "Añadir ubicación..." se muestra un cuadro de diálogo para seleccionar cualquier carpeta. Luego
+    #se actua igual.
+    ind = ventana.selUnidades.GetFirstSelected()
+    if ind >=0:
+        item = ventana.selUnidades.GetItem(ind,0)
+        unidad = item.GetText()
+        if unidad == "Añadir ubicación...":
+            dlg = wx.DirDialog (None, "Selecciona una carpeta", "",wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST)
+            if dlg.ShowModal() == wx.ID_OK:
+                dirname = dlg.GetPath()
+                unidad = str(Path(dirname).name)
+                ventana.selUnidades.SetItemText(0,dirname)
+                ventana.etiquetaUnidad.Clear()
+                ventana.etiquetaUnidad.write(unidad)
+                wx.Button.Enable(ventana.btnAnadir)
+            else:
+                pass
             dlg.Destroy()
-   
-        except Exception as e: 
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            a = str(exc_type) + " " + str(fname) + " " + str(exc_tb.tb_lineno)
-            wx.MessageBox(a, 'Warning', wx.OK | wx.CANCEL | wx.ICON_WARNING)
-            dlg.Update(0,str(e))            
- 
-class Buscador(wx.Frame):
-    def __init__(self, *args, **kwds):
+        else:
+            wx.Button.Enable(ventana.btnAnadir)
+            ventana.etiquetaUnidad.Clear()
+            '''
+            Si el sistema es Windows ("win32"), se usa la función win32api.GetVolumeInformation, para obtener la etiqueta de la unidad
+            Hago esto porque en Linux/Mac es fácil obtener este dato, dado que la partición en Volumes/mnt ya lleva ese dato.
+            En Windows esto no ocurre.
+            Al inicio de la carga del programa se identifica también el sistema, para discriminar la carga de win32api (dado que este
+            módulo no existe en Linux/Mac)
+            '''
+            if sys.platform=='win32': 
+                etiquetawindows = win32api.GetVolumeInformation(unidad)[0]
+                if len(etiquetawindows)>0:
+                    ventana.etiquetaUnidad.write(etiquetawindows)
+                else:
+                    ventana.etiquetaUnidad.write(unidad)
+            else:
+                ventana.etiquetaUnidad.write(str(Path(unidad).name))
+                
+
+def gestionar_lista_unidades(ventana,todas):
+    #Si todas es True se muestran todas las particiones, incluso las de sistema. No es recomendado, pero lo dejo por si alguien
+    #lo quiere usar.
+    if todas:
+        discos = psutil.disk_partitions(all=True)
+    else:
+        discos = psutil.disk_partitions(all=False)
         
-        self.cursorObj = conector.cursor()
-        kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
-        wx.Frame.__init__(self, *args, **kwds)
-        self.SetSize((800, 450))
-        self.SetTitle(nombre_app)
+    ventana.selUnidades.ClearAll()
+    ventana.selUnidades.InsertColumn(0, "Unidades",width = 150)
+    ventana.selUnidades.Append(("Añadir ubicación...",))
+    ventana.selUnidades.SetItemData(0,0)
+    #Se revisan todas las particiones, y dependiendo de si se ha seleccionado mostrar todas o no, se muestran en la lista.
+    for disco in discos:
+        #Si el disco tiene alguna característica especial y se ha seleccionado no mostrar unidades especiales, no se dibuja.
+        if (("rootfs" in disco[3]) or ("dontbrowse" in disco[3]) or ("fixed" in disco[3])) and not(todas):
+            pass
+        else:
+            try:
+                espacio = psutil.disk_usage(disco[1])
+                usado = espacio[1]
+                ventana.selUnidades.Append((disco[1],))
+                ventana.selUnidades.SetItemData(self.selUnidades.GetItemCount()-1,usado)
+            except:
+                pass
 
-        menubar = wx.MenuBar()
-        
-        fileMenu = wx.Menu()
-        self.menuocultos = fileMenu.Append(-1, '&Mostrar archivos ocultos', 'Muestra archivos de sistema que suelen estar ocultos', kind=wx.ITEM_CHECK)
-        menubar.Append(fileMenu, '&Opciones')
-        self.Bind(wx.EVT_MENU, self.MuestraArchivosOcultos, self.menuocultos)
-        
-        self.SetMenuBar(menubar)
+def gestionar_boton_anadir(evt, ventana):
+    ind = ventana.selUnidades.GetFirstSelected()
+    if ind >=0 and ventana.etiquetaUnidad.GetLineText(0):
+        item = ventana.selUnidades.GetItem(ind,0)
+        ruta = item.GetText() #Se obtiene la ruta que se usará
+        ruta = Path(ruta).as_posix() #Se pasa a formato estandar (Windows usa \ y Linux usa /)
+        tamano = psutil.disk_usage(ruta) #Se obtiene el tamaño de la unidad
+        unidad = ventana.etiquetaUnidad.GetLineText(0) #Y la etiqueta que le hemos dado a la unidad
+        anade_a_la_base_de_datos(ruta, unidad,tamano, ventana) #Con esos datos, se llama a la función que añade los datos a la base de datos
+        ventana.Destroy() #Y destruimos la ventana para volver a la ventana principal
 
-        self.barraestado = wx.StatusBar(self, style=wx.STB_SIZEGRIP | wx.STB_ELLIPSIZE_MIDDLE | wx.STB_SHOW_TIPS)
-        self.SetStatusBar(self.barraestado)
-
-        self.pPrincipal = wx.Panel(self, wx.ID_ANY)
-
-        primerDivisior = wx.BoxSizer(wx.HORIZONTAL)
-
-        dUnidades = wx.BoxSizer(wx.VERTICAL)
-        primerDivisior.Add(dUnidades, 2, wx.EXPAND, 0)
-
-        self.lUnidades = wx.ListCtrl(self.pPrincipal, wx.ID_ANY, style=wx.LC_HRULES | wx.LC_REPORT)
-        
-        self.lUnidades.AppendColumn("Unidades", format=wx.LIST_FORMAT_LEFT, width=-1)
-        
-        #sizer_1 = wx.BoxSizer(wx.HORIZONTAL)
-        #dUnidades.Add(sizer_1, 1, wx.EXPAND, 0)
-        
-        self.eBuscar = wx.SearchCtrl(self.pPrincipal, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
-        self.eBuscar.ShowCancelButton(True)
-        self.eBuscar.Bind(wx.EVT_SEARCH, self.OnKeyDown)
-        self.eBuscar.SetToolTip("Escribe el texto a buscar y pulsa Intro para iniciar la búsqueda.")
-        
-        sBotones = wx.BoxSizer(wx.HORIZONTAL)
-        
-        dUnidades.Add(self.eBuscar, 0, wx.ALL | wx.EXPAND, 6)
-        
-        dUnidades.Add(self.lUnidades, 1, wx.ALL | wx.EXPAND, 6)
-        dUnidades.Add(sBotones, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL, 6)
+def gestionar_checkbox(evt, ventana):
+    #Se borra el contenido de etiquetaUnidad (si había algo) y se vuelve a dejar el botón de añadir como no disponible
+    ventana.etiquetaUnidad.Clear()
+    wx.Button.Disable(ventana.btnAnadir)
+    if ventana.chkunidades.GetValue():
+        gestionar_lista_unidades(ventana, True)
+    else:
+        gestionar_lista_unidades(ventana, False)
 
 
-        self.btnGestionar = wx.Button(self.pPrincipal, wx.ID_ANY, "Gestionar")
-        sBotones.Add(self.btnGestionar, 1, wx.ALL | wx.EXPAND, 3)
-        self.btnGestionar.Bind(wx.EVT_BUTTON, self.boton_modal)
-        self.btnGestionar.SetToolTip("Muestra la herramienta para añadir unidades a la base de datos.")
+def abrir_ventana_gestionar(evt):
+    dlg = NuevaUnidadDialog(app.frame, -1, "Añadir nueva unidad", size=(400, 200),style=wx.DEFAULT_DIALOG_STYLE)
 
-        self.btnDuplicados = wx.Button(self.pPrincipal, wx.ID_ANY, "Duplicados")
-        sBotones.Add(self.btnDuplicados, 1, wx.ALL | wx.EXPAND, 3)
-        self.btnDuplicados.Bind(wx.EVT_BUTTON, self.buscar_duplicados)
-        self.btnDuplicados.SetToolTip("Busca archivos duplicados mayores de 100 megas.")
-        
+    #Se establecen los lanzadores de la ventana de gestión. En el código original al llamar a una clase se usaba el self para
+    #añadir la ventana de destino. Como estoy usando el código de la UI en módulos separados uso lambda para pasar la ventana
+    #como objeto a la función. Estoy seguro de que no se debe hacer así, pero no conozco un método mejor.
+    
+    dlg.chkunidades.Bind(wx.EVT_CHECKBOX, lambda evt, ventana=dlg: gestionar_checkbox(evt, ventana))
+    dlg.selUnidades.Bind(wx.EVT_LIST_ITEM_SELECTED, lambda evt, ventana=dlg: gestionar_unidad_seleccionada(evt, ventana))
+    dlg.btnAnadir.Bind(wx.EVT_BUTTON, lambda evt, ventana=dlg: gestionar_boton_anadir(evt, ventana))
+    gestionar_lista_unidades(dlg, False)
+    
+    dlg.ShowWindowModal()   
+    
+def al_cerrar_ventana_gestionar(evt):
+    #En verdad todo esto no hace falta. Está sacado de un ejemplo y lo mantuve por si más adelante era necesario.
+    #Lo único de verdad necesario es cargar las unidades al cerrar la ventana y destruir la ventana "Gestionar"
+    dialog = evt.GetDialog()
+    val = evt.GetReturnCode()
+    try:
+        btnTxt = { wx.ID_OK : "OK",
+                   wx.ID_CANCEL: "Cancel" }[val]
+    except KeyError:
+        btnTxt = '<unknown>'
+    carga_tUnidades()        
+    dialog.Destroy()
+    
+def buscar_duplicados(evt):
+    cursorObj = conector.cursor()
+    
+    #Se hace el mismo proceso que en la función de búsqueda para mostrar el mensaje de "Buscando..."
+    app.frame.lArbol.Show(True)
+    app.frame.tArbol.Show(False)
+    app.frame.lArbol.DeleteAllItems()
+    app.frame.lArbol.Append(("Buscando...",))
+    app.frame.lArbol.Append(("",))
+    app.frame.lArbol.Append(("Por favor, espera...",))
+    app.frame.pPrincipal.Layout()
+    wx.Yield()
+    
+    #Esta es quizás la búsqueda SQL más complicada del programa. Se genera una tabla nueva que junte los items con el mismo nombre
+    #y el mismo tamaño (ZNAME y ZTOTALBYTES). Luego, de esa tabla se eliminan las carpetas y sólo se muestran archivos mayores a 
+    #100 Mb. Y por último se muestran los resultados ordenados por tamaño.
+    cursorObj.execute("""
+        SELECT a.ZPK, a.ZTOTALBYTES, a.ZFULLPATH, a.ZNAME, a.ZPARTOFCATALOG
+        FROM ZSTORAGEITEM a
+        JOIN (SELECT ZTOTALBYTES, ZNAME, COUNT(*)
+        FROM ZSTORAGEITEM 
+        WHERE ZISFOLDER = 0 AND ZTOTALBYTES>100000000
+        GROUP BY ZTOTALBYTES, ZNAME
+        HAVING count(*) > 1 ) b
+        ON a.ZTOTALBYTES = b.ZTOTALBYTES
+        AND a.ZNAME = b.ZNAME
+        ORDER BY a.ZTOTALBYTES DESC
+    """)
+    rows = cursorObj.fetchall()
+    app.frame.lArbol.DeleteAllItems()
+    
+    #Esto simplemente recorre el resultado y lo pinta en el lArbol.
+    for row in rows:
+        valor_a_buscar = (row[4],)
+        cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
+        rows = cursorObj.fetchall()
+        unidad = rows[0][11]
+        datos = (row[3],devuelve_tamano(row[1]),unidad, row[2])
+        app.frame.lArbol.Append(datos)
 
-        
-        self.Bind(wx.EVT_WINDOW_MODAL_DIALOG_CLOSED, self.OnWindowModalDialogClosed)
 
 
+#Las dos funciones de abajo (al_abrir y al_pulsar se ejecutan al pulsar con el ratón o usar el teclado sobre tArbol)
+def al_pulsar(evt):    
+    try:
+        pos = evt.GetPosition()
+        item, flags, col = app.frame.tArbol.HitTest(pos)
+        extraer_datos_tvResultados(item)
+    except:
+        pass
 
-        dArbol = wx.BoxSizer(wx.VERTICAL)
-        primerDivisior.Add(dArbol,7, wx.EXPAND, 0)
+def al_abrir(evt):
+    item = evt.GetItem()
+    extraer_datos_tvResultados(item)
+    
+#Esta función es similar a las anteriores, pero se ejecuta al pulsar sobre un item en lArbol.
+#Simplemente muestra la ruta del archivo en la barra de estado.
+def pulsa_en_item(evt):
+    ind = app.frame.lArbol.GetFirstSelected()
+    if ind >=0:
+        item = app.frame.lArbol.GetItem(ind,3)
+        texto = item.GetText().replace("/"," ▸ ")
+        app.frame.barraestado.SetStatusText(texto)
 
-        self.tArbol = HTL.HyperTreeList(self.pPrincipal, agwStyle=wx.TR_DEFAULT_STYLE | HTL.TR_ELLIPSIZE_LONG_ITEMS)
-        
-        colorfondo = wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOX)
-        self.tArbol.SetBackgroundColour(colorfondo)
-   
-        
+def boton_secundario_lArbol(evt):
+    #Es una función similar a la de abajo. Al pulsar con el botón derecho sobre un ítem de lArbol permite abrir el archivo o su
+    #ubicación.
+    
+    #Comprueba si se ha pulsado sobre un ítem y no sobre la parte vacía de la tabla.
+    ind = app.frame.lArbol.GetFirstSelected()
+    if ind >=0:
+        ruta = app.frame.lArbol.GetItem(ind,3).GetText()
 
-        #self.tArbol = wx.TreeCtrl(self.pPrincipal, wx.ID_ANY)
-        dArbol.Add(self.tArbol, 1, wx.ALL | wx.EXPAND, 6)
-
-        self.lArbol = wx.ListCtrl(self.pPrincipal, wx.ID_ANY, style=wx.LC_HRULES | wx.LC_REPORT | wx.LC_VRULES)
-        self.lArbol.AppendColumn("Archivo", format=wx.LIST_FORMAT_LEFT, width=380)
-        self.lArbol.AppendColumn("Tamaño", format=wx.LIST_FORMAT_LEFT, width=80)
-        self.lArbol.AppendColumn("Unidad", format=wx.LIST_FORMAT_LEFT, width=90)
-        self.lArbol.AppendColumn("Ruta", format=wx.LIST_FORMAT_LEFT, width=0)
-
-        
-
-
-        dArbol.Add(self.lArbol, 1, wx.ALL | wx.EXPAND, 6)
-        self.lArbol.Show(False)
-
-
-
-
-
-        
-        #dArbol.Add(self.eBuscar, 0, wx.ALL | wx.EXPAND, 6 )
-
+    #Este menú es igual al que usaré en la función que viene a continuación.
+    app.frame.popupmenucarpeta = wx.Menu()
+    menuAbrir = app.frame.popupmenucarpeta.Append(1, 'Abrir')
+    menuSeparador = app.frame.popupmenucarpeta.Append(-1, "","",wx.ITEM_SEPARATOR)
+    menuAbrirCarpetaContenedora = app.frame.popupmenucarpeta.Append(2, 'Abrir carpeta contenedora')
+    app.frame.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: abrir_desde_menu(evt, ruta, 0), menuAbrirCarpetaContenedora)
+    app.frame.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: abrir_desde_menu(evt, ruta, 1), menuAbrir)
+    app.frame.PopupMenu(app.frame.popupmenucarpeta, evt.GetPoint())
 
 
-
-        il = wx.ImageList(16, 16)
-
-        graficos_carpeta = {
-            'win32': carpeta_win.GetBitmap(),
-            'linux': wx.ArtProvider.GetBitmap(wx.ART_FOLDER, wx.ART_MENU, (16,16)),
-            'darwin': carpeta_mac.GetBitmap()
-            }
-            
-        carpeta = graficos_carpeta[sys.platform]
-        self.fldropenidx = self.fldridx =il.Add(carpeta)
-        imgarchivo = wx.ArtProvider.GetBitmap(wx.ART_NORMAL_FILE, wx.ART_MENU, (16,16))
-        self.fileidx = il.Add(imgarchivo)
-
-        self.tArbol.SetImageList(il)
-        self.il = il
-        # create some columns
-        self.tArbol.AddColumn("Nombre")
-        self.tArbol.AddColumn("Tamaño")
-        self.tArbol.SetMainColumn(0) # the one with the tree in it...
-        self.tArbol.SetColumnWidth(0, 400)
-  
-  
-        self.tArbol.GetMainWindow().Bind(wx.EVT_LEFT_UP, self.AlPulsar)
-        self.tArbol.Bind(wx.EVT_TREE_ITEM_EXPANDED, self.AlAbrir)
-        self.lArbol.Bind(wx.EVT_LIST_ITEM_SELECTED, self.pulsa_en_item)
-        self.lArbol.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.boton_secundario_lArbol)
-        
-        self.tArbol.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.boton_secundario_tArbol)
-        
-
-        
-        
-        self.lUnidades.Bind(wx.EVT_LIST_ITEM_SELECTED, self.seleccion_unidades)
-        self.lUnidades.Bind(wx.EVT_RIGHT_DOWN, self.renombra_lista)
-
-        self.pPrincipal.SetSizer(primerDivisior)
-
-        self.Layout()
-        # end wxGlade
-        #self.seleccion_arbol('WD Red')
-        
-        self.carga_tUnidades()
-        
-    def MuestraArchivosOcultos(self, event):
-        self.tArbol.DeleteAllItems()
-        ind = self.lUnidades.GetFirstSelected()
-        if ind >=0:
-            item = self.lUnidades.GetItem(ind,0)
-            self.seleccion_arbol(item.GetText())
-
-    def boton_secundario_lArbol(self, evt):
-        ind = self.lArbol.GetFirstSelected()
-        if ind >=0:
-            ruta = self.lArbol.GetItem(ind,3).GetText()
-
-        self.popupmenucarpeta = wx.Menu()
-        menuAbrirCarpetaContenedora = self.popupmenucarpeta.Append(1, 'Abrir carpeta contenedora')
-        menuSeparador = self.popupmenucarpeta.Append(-1, "","",wx.ITEM_SEPARATOR)
-        menuAbrir = self.popupmenucarpeta.Append(2, 'Abrir')
-        self.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: self.abrir_desde_menu(evt, ruta, 0), menuAbrirCarpetaContenedora)
-        self.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: self.abrir_desde_menu(evt, ruta, 1), menuAbrir)
-        self.PopupMenu(self.popupmenucarpeta, evt.GetPoint())
-
-    def boton_secundario_tArbol(self, evt):
-        item = evt.GetItem()
-        valor = self.tArbol.GetPyData(item)
+def boton_secundario_tArbol(evt):
+    #Esta función y la siguiente funcionan en paralelo. 
+    #La función "boton_secundario_tArbol" se ejecuta cuando se hace clic derecho sobre un item de tArbol. Muestra dos opciones:
+    #Abrir el item o Abrir su carpeta contenedora. Cuando se selecciona una de estas dos opciones, se llama a "abrir_desde_menu"
+    cursorObj = conector.cursor()
+    item = evt.GetItem()
+    valor = app.frame.tArbol.GetPyData(item)
+    #El if de abajo impide que se abra el menú si lo que se selecciona es el tronco del árbol de carpetas
+    if valor!='Principal':
         if valor[0]==1:
             valor_a_buscar = (valor[3],)
         elif valor[0]==0:
             valor_a_buscar = (valor[1],)
-
-        self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
-        ruta = self.cursorObj.fetchall()[0][10]
-        
-        self.popupmenucarpeta = wx.Menu()
-        menuAbrirCarpetaContenedora = self.popupmenucarpeta.Append(1, 'Abrir carpeta contenedora')
-        menuSeparador = self.popupmenucarpeta.Append(-1, "","",wx.ITEM_SEPARATOR)
-        menuAbrir = self.popupmenucarpeta.Append(2, 'Abrir')
-        self.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: self.abrir_desde_menu(evt, ruta, 0), menuAbrirCarpetaContenedora)
-        self.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: self.abrir_desde_menu(evt, ruta, 1), menuAbrir)
-        self.PopupMenu(self.popupmenucarpeta, evt.GetPoint())
-
+        #Con la siguiente búsqueda se obtiene la ruta del archivo o carpeta (ya que si no sólo tendríamos el nombre)
+        cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
+        ruta = cursorObj.fetchall()[0][10]
     
-    def abrir_desde_menu(self, evt,  dato, tipo):
-        ruta = Path(dato)
-        if os.path.exists(ruta):
-            if tipo == 0:
-                ruta = str(ruta.parent)
-                #Se debe abrir la carpeta contenedora
-            else:
-                ruta = str(ruta)
-                #Se debe abrir el archivo/carpeta
-            if sys.platform=='win32':
-                os.startfile(os.path.realpath(ruta))
-            else:
-                subprocess.run(['open', os.path.realpath(ruta)])
+        #Se genera un menú con las opciones y se muestra al usuario.
+        app.frame.popupmenucarpeta = wx.Menu()
+        menuAbrir = app.frame.popupmenucarpeta.Append(1, 'Abrir')
+        menuSeparador = app.frame.popupmenucarpeta.Append(-1, "","",wx.ITEM_SEPARATOR)
+        menuAbrirCarpetaContenedora = app.frame.popupmenucarpeta.Append(2, 'Abrir carpeta contenedora')
+        app.frame.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: abrir_desde_menu(evt, ruta, 0), menuAbrirCarpetaContenedora)
+        app.frame.popupmenucarpeta.Bind(wx.EVT_MENU, lambda evt, ruta=ruta: abrir_desde_menu(evt, ruta, 1), menuAbrir)
+        app.frame.PopupMenu(app.frame.popupmenucarpeta, evt.GetPoint())
+
+def abrir_desde_menu(evt,  dato, tipo):
+    ruta = Path(dato)
+    #Se comprueba si existe el archivo o carpeta. En caso contrario se muestra una advertencia
+    if os.path.exists(ruta):
+        if tipo == 0:
+            ruta = str(ruta.parent)
+            #Se debe abrir la carpeta contenedora
         else:
-            a = wx.MessageDialog(None, "Archivo no encontrado. Conecta la unidad y prueba de nuevo.", caption="Unidad no conectada",style=wx.OK|wx.ICON_WARNING|wx.CENTRE).ShowModal()
-            
-        
-    def renombra_lista(self, event):
-        ind = self.lUnidades.GetFirstSelected()
+            ruta = str(ruta)
+            #Se debe abrir el archivo/carpeta
+        #En Windows se recurre a os.startfile; se trata de una función específica para el fin que necesitamos
+        if sys.platform=='win32':
+            os.startfile(os.path.realpath(ruta))
+        else:
+            #En Mac o Linux os.startfile no funciona, por lo que es necesario ejecutar un proceso llamando a open y pasando
+            #la ruta como parámetro.
+            subprocess.run(['open', os.path.realpath(ruta)])
+    else:
+        a = wx.MessageDialog(None, "Archivo no encontrado. Conecta la unidad y prueba de nuevo.", caption="Unidad no conectada",style=wx.OK|wx.ICON_WARNING|wx.CENTRE).ShowModal()
+
+
+
+def menu_lista_unidades(event):
+    #Este menú se muestra al hacer clic derecho sobre el listado izquierdo (el de unidades). Permite borrar o renombrar items.
+    ind = app.frame.lUnidades.GetFirstSelected()
+    if ind >=0:
+        item = app.frame.lUnidades.GetItem(ind,0)
+        x = event.GetX()
+        y = event.GetY()
+        ind = app.frame.lUnidades.HitTest((x, y))[0]
         if ind >=0:
-            item = self.lUnidades.GetItem(ind,0)
-            x = event.GetX()
-            y = event.GetY()
-            ind = self.lUnidades.HitTest((x, y))[0]
-            if ind >=0:
-                item = self.lUnidades.GetItemText(ind)
-                self.popupmenu = wx.Menu()
-                menuItemRenombrar = self.popupmenu.Append(1, 'Renombrar...')
-                menuSeparador = self.popupmenu.Append(-1, "","",wx.ITEM_SEPARATOR)
-                menuItemBorrar = self.popupmenu.Append(2, 'Borrar...')
-            
-                self.popupmenu.Bind(wx.EVT_MENU, self.renombra_unidades, menuItemRenombrar)
-                self.popupmenu.Bind(wx.EVT_MENU, self.borra_unidades, menuItemBorrar)
-            
-                self.PopupMenu(self.popupmenu, event.GetPosition())
+            item = app.frame.lUnidades.GetItemText(ind)
+            app.frame.popupmenu = wx.Menu()
+            menuItemRenombrar = app.frame.popupmenu.Append(1, 'Renombrar...')
+            menuSeparador = app.frame.popupmenu.Append(-1, "","",wx.ITEM_SEPARATOR)
+            menuItemBorrar = app.frame.popupmenu.Append(2, 'Borrar...')
+            app.frame.popupmenu.Bind(wx.EVT_MENU, renombra_unidades, menuItemRenombrar)
+            app.frame.popupmenu.Bind(wx.EVT_MENU, borra_unidades, menuItemBorrar)
+            app.frame.PopupMenu(app.frame.popupmenu, event.GetPosition())
         
-
-
-
-        
-    def OnKeyDown(self,evt):
-        self.lArbol.Show(True)
-        
-        self.tArbol.Show(False)
-        self.lArbol.DeleteAllItems()
-        self.lArbol.Append(("Buscando...",))
-        self.lArbol.Append(("",))
-        self.lArbol.Append(("Por favor, espera...",))
-        
-        self.pPrincipal.Layout()
-        wx.Yield()
-        
-        valor_a_buscar = ("%"+evt.GetString()+"%",)
-        self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZNAME LIKE ?',valor_a_buscar)
-        rows = self.cursorObj.fetchall()
-        self.lArbol.DeleteAllItems()
-        
-        for row in rows:
-            if row[11]:
-                try:
-                    valor_a_buscar = (row[9],)
-                    self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
-                    rows = self.cursorObj.fetchall()
-                    unidad = rows[0][11]
-                except:
-                    unidad = ""
-                
-                datos = (row[11],devuelve_tamano(row[2]),unidad, row[10])
-                self.lArbol.Append(datos)
-        
-
-        
-    def boton_modal(self, evt):
-        dlg = NuevaUnidadDialog(self, -1, "Añadir nueva unidad", size=(400, 200),
-                         style=wx.DEFAULT_DIALOG_STYLE)
-        dlg.ShowWindowModal()   
-        
-    def OnWindowModalDialogClosed(self, evt):
-        dialog = evt.GetDialog()
-        val = evt.GetReturnCode()
-        try:
-            btnTxt = { wx.ID_OK : "OK",
-                       wx.ID_CANCEL: "Cancel" }[val]
-        except KeyError:
-            btnTxt = '<unknown>'
-        self.carga_tUnidades()        
-
-
-        dialog.Destroy()
-        
-    def buscar_duplicados(self, evt):
-        self.lArbol.Show(True)
-        
-        self.tArbol.Show(False)
-        self.lArbol.DeleteAllItems()
-        self.lArbol.Append(("Buscando...",))
-        self.lArbol.Append(("",))
-        self.lArbol.Append(("Por favor, espera...",))
-        
-        self.pPrincipal.Layout()
-        wx.Yield()
-        self.cursorObj.execute("""
-            SELECT a.ZPK, a.ZTOTALBYTES, a.ZFULLPATH, a.ZNAME, a.ZPARTOFCATALOG
-            FROM ZSTORAGEITEM a
-            JOIN (SELECT ZTOTALBYTES, ZNAME, COUNT(*)
-            FROM ZSTORAGEITEM 
-            WHERE ZISFOLDER = 0 AND ZTOTALBYTES>100000000
-            GROUP BY ZTOTALBYTES, ZNAME
-            HAVING count(*) > 1 ) b
-            ON a.ZTOTALBYTES = b.ZTOTALBYTES
-            AND a.ZNAME = b.ZNAME
-            ORDER BY a.ZTOTALBYTES DESC
-        """)
-        rows = self.cursorObj.fetchall()
-        self.lArbol.DeleteAllItems()
-        
-        for row in rows:
-            valor_a_buscar = (row[4],)
-            self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
-            rows = self.cursorObj.fetchall()
-            unidad = rows[0][11]
-            datos = (row[3],devuelve_tamano(row[1]),unidad, row[2])
-            self.lArbol.Append(datos)
-        
-
-    def seleccion_unidades(self, evt):
-        ind = self.lUnidades.GetFirstSelected()
-        if ind >=0:
-            item = self.lUnidades.GetItem(ind,0)
-            self.seleccion_arbol(item.GetText())
-            self.eBuscar.SetValue("")
-            
-            
-    def pulsa_en_item(self, evt):
-        ind = self.lArbol.GetFirstSelected()
-        if ind >=0:
-            item = self.lArbol.GetItem(ind,3)
-            
-            texto = item.GetText().replace("/"," ▸ ")
-            self.barraestado.SetStatusText(texto)
-            
-
-    def AlPulsar(self, evt):    
-        try:
-            pos = evt.GetPosition()
-            item, flags, col = self.tArbol.HitTest(pos)
-            self.extraer_datos_tvResultados(item)
-        except:
-            pass
-        
-    def AlAbrir(self, evt):
-                
-        
-        item = evt.GetItem()
-        self.extraer_datos_tvResultados(item)
-
-
-    def seleccion_arbol(self,unidad):
-        self.lArbol.Show(False)
-        self.tArbol.Show(True)
-        self.pPrincipal.Layout()
-        self.tArbol.DeleteAllItems()
-        self.root = self.tArbol.AddRoot(unidad)
-        self.tArbol.SetPyData(self.root ,"Principal") 
-        valor_a_buscar = (0,unidad,)
-        self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZENT=? AND ZNAME=?',valor_a_buscar)
-        rows = self.cursorObj.fetchall()
-        ruta=rows[0][0]
-        fecha_creacion = rows[0][8]
-        espacio_total = rows[0][2]
-        espacio_usado = rows[0][3]
-        try:
-            fecha_creacion = datetime.datetime.fromtimestamp(fecha_creacion).strftime('%d-%m-%Y a las %H:%M:%S')
-            porciento = str(round((espacio_usado/espacio_total)*100,2))
-            texto = "Creado el " + fecha_creacion + ". Utilizados "+devuelve_tamano(espacio_usado)+ " de "+devuelve_tamano(espacio_total) + " (" +porciento+"%)"
-        except:
-            texto = "Utilizados "+devuelve_tamano(espacio_usado)+ " de "+devuelve_tamano(espacio_total)
-
-        self.barraestado.SetStatusText(texto)
-        start_path = os.path.expanduser(r"")
-        start_dir_entries = self.lista_carpeta(ruta)
-        self.new_folder(start_dir_entries,self.root)
-        self.tArbol.Expand(self.root)
-        
-
-                        
+def renombra_unidades(event):
+    #Esta función se ejecuta cuando se selecciona "Renombrar..." en el listado de unidades. 
+    cursorObj = conector.cursor()
+    ind = app.frame.lUnidades.GetFirstSelected()
+    item = app.frame.lUnidades.GetItem(ind,0)
+    #Obtenemos el ID del item y su texto
+    ZPK_item = app.frame.lUnidades.GetItemData(ind)
+    texto_item = item.GetText()
+    #Mostramos una ventana preguntando por el nuevo nombre y le pasamos el nombre antiguo para que se muestre por defecto
+    r = wx.TextEntryDialog(None, 'Introduce el nuevo nombre', caption='Renombrar unidad',value=texto_item)
+    if r.ShowModal() != wx.ID_OK:
+        #Si se pulsa en cancelar se cancela el proceso
+        return
+    datos_update = (r.GetValue(),ZPK_item,)
+    #Se ejecuta la orden para actualizar el nombre de la unidad
+    cursorObj.execute('UPDATE ZSTORAGEITEM SET ZNAME=? WHERE ZPK=?',datos_update)
+    conector.commit()
+    #Y se vuelven a cargar las unidades en el listado de la izquierda
+    carga_tUnidades()
+    app.frame.tArbol.DeleteAllItems()
     
-    def carga_tUnidades(self):
-        self.lUnidades.ClearAll()
-
-        self._il = wx.ImageList(32, 32)
-
-
-        graficos_extraible = {
-            'win32': extraible_win.GetBitmap(),
-            'linux': wx.ArtProvider.GetBitmap(wx.ART_HARDDISK, wx.ART_MENU, (32,32)),
-            'darwin': extraible_mac.GetBitmap()
-            }
-        extraible = graficos_extraible[sys.platform]
+    
+def borra_unidades(evt):
+    #Función para borrar unidades tras seleccionar la opción en el menú contextual
+    cursorObj = conector.cursor()
+    #Se muestra un mensaje de advertencia
+    r = wx.MessageDialog(None,'Atención. Te dispones a eliminar una unidad de la base de datos.\nEste proceso no se puede deshacer. ¿Quieres continuar?','¿Eliminar?',wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION).ShowModal()
+    if r != wx.ID_YES:
+        #Si cancelamos se cancela el proceso
+        return
         
-        img_idx = self._il.Add(extraible)
-        self.lUnidades.SetImageList(self._il, wx.IMAGE_LIST_SMALL)
-        valores = []
-        
-        self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZENT=0')
-        rows = self.cursorObj.fetchall()
-        
-        self.lUnidades.InsertColumn(0, "Unidades",width = 150)
-
-        for row in rows:  
-            self.lUnidades.Append((row[11],))
-            self.lUnidades.SetItemData(self.lUnidades.GetItemCount()-1,row[0]) 
-            self.lUnidades.SetItemImage(self.lUnidades.GetItemCount() - 1, img_idx)
-
-    def renombra_unidades(self, event):
-        ind = self.lUnidades.GetFirstSelected()
-        item = self.lUnidades.GetItem(ind,0)
-        ZPK_item = self.lUnidades.GetItemData(ind)
-        texto_item = item.GetText()
-        r = wx.TextEntryDialog(None, 'Introduce el nuevo nombre', caption='Renombrar unidad',value=texto_item)
-        if r.ShowModal() != wx.ID_OK:
-            return
-        datos_update = (r.GetValue(),ZPK_item,)
-        self.cursorObj.execute('UPDATE ZSTORAGEITEM SET ZNAME=? WHERE ZPK=?',datos_update)
-        conector.commit()
-        self.carga_tUnidades()
-        self.tArbol.DeleteAllItems()
-        
-    def borra_unidades(self, evt):
-        r = wx.MessageDialog(None,'Atención. Te dispones a eliminar una unidad de la base de datos.\nEste proceso no se puede deshacer. ¿Quieres continuar?','¿Eliminar?',wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION).ShowModal()
-
-        if r != wx.ID_YES:
-            return
-            
-        ind = self.lUnidades.GetFirstSelected()
-        if ind >=0:
-            item = self.lUnidades.GetItemData(ind)
-            valor = (item,)
-            self.cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPARTOFCATALOG=?',valor)
-            self.cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPK=?',valor)
-            conector.commit()
-            self.cursorObj.execute('VACUUM')
-            conector.commit()
-            
-            self.carga_tUnidades()
-            self.tArbol.DeleteAllItems()
-
-
-    def lista_carpeta(self,ruta):
-        valores = []
-        valores2=[]
-        valor_a_buscar = (ruta,)
-        self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPARENT=?',valor_a_buscar)
-        rows = self.cursorObj.fetchall()
-        for row in rows:
-            
-            if not(row[6]):
-                carpeta=0
-            else:
-                carpeta=1
-            fila = {
-              "nombre": row[11],
-              "tipo": row[12],
-              "ID": row[0],
-              "tamano": row[2],
-              "carpeta":carpeta,
-              "pista": row[1],
-              "artista": row[1],
-              "disco": row[1],
-              "zparent": row[7],
-              "ruta_completa": row[10]
-            }
-            valores.append(fila)
-        return valores
-
-
-
-    def new_folder(self, directory_entries, parent_iid):
-        for datos in directory_entries:
-            carpeta=datos["carpeta"]
-            tipo = datos["tipo"]
-            id = datos["ID"]
-            tamano = datos["tamano"]
-            pista = datos["pista"]
-            artista = datos["artista"]
-            disco = datos["disco"]
-            zparent=datos["zparent"]
-            nombre = datos["nombre"]
-            ruta_completa = datos["ruta_completa"]
-            prohibidas = ["$RECYCLE.BIN","System Volume Information"]
-            MuestraOcultos = self.menuocultos.IsChecked()
-            if (nombre[0:1]=='.' or nombre in prohibidas) and not(MuestraOcultos):  #Se usa para no mostrar archivos ocultos
-                pass
-            else:
-                if (carpeta == 1):
-                    subdir_iid = self.tArbol.AppendItem(parent_iid,nombre)
-                    self.tArbol.SetItemText(subdir_iid, devuelve_tamano(tamano), 1)
-                    self.tArbol.SetPyData(subdir_iid,(carpeta, subdir_iid,"FALSE",id))  
-                    self.tArbol.SetItemImage(subdir_iid, self.fldridx, which = wx.TreeItemIcon_Normal)
-                    self.tArbol.SetItemImage(subdir_iid, self.fldropenidx, which = wx.TreeItemIcon_Expanded)
-                    self.tArbol.AppendItem(subdir_iid, "Cargando...")
-                    colorletras = wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOXTEXT)
-                    self.tArbol.SetItemTextColour(subdir_iid,colorletras)
-                    #tvResultados.item(subdir_iid, tags=(subdir_iid,item_path))
-                else:
-                    item = self.tArbol.AppendItem(parent_iid,nombre)
-                    self.tArbol.SetItemText(item, devuelve_tamano(tamano), 1)
-                    self.tArbol.SetItemImage(item, self.fileidx, which = wx.TreeItemIcon_Normal)
-                    self.tArbol.SetPyData(item,(carpeta,id,nombre,tamano,zparent,tipo,ruta_completa)) 
-                    colorletras = wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOXTEXT)
-                    self.tArbol.SetItemTextColour(item,colorletras)
-
-    def devuelve_ubicacion(self, item):
+    ind = app.frame.lUnidades.GetFirstSelected()
+    if ind >=0:
+        #Obtenemos el ID del valor que queremos borrar
+        item = app.frame.lUnidades.GetItemData(ind)
         valor = (item,)
-        self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor)
-        rows = self.cursorObj.fetchall()
-        
-        return rows[0][10]
+        #Borramos todos los items que dependen de la unidad seleccionada
+        cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPARTOFCATALOG=?',valor)
+        #Y la unidad seleccionada
+        cursorObj.execute('DELETE FROM ZSTORAGEITEM WHERE ZPK=?',valor)
+        #Se aplican los cambios
+        conector.commit()
+        #Y se comprime de nuevo la base de datos para optimizar su tamaño
+        cursorObj.execute('VACUUM')
+        conector.commit()
+        #Para terminar se vuelven a cargar las unidades y se borran los items del tArbol para eliminar datos antiguos.
+        carga_tUnidades()
+        app.frame.tArbol.DeleteAllItems()    
+    
+def main(args):
+    return 0
 
-    def extraer_datos_tvResultados(self, item):
-        valor = self.tArbol.GetPyData(item)
-        if (valor!="Principal"):
-            if (valor[0]==1):
-                valor_ZPK = valor[3]  
-            else:
-                valor_ZPK = valor[1]            
-            valor_a_buscar = (valor_ZPK,)
-            self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
-            rows = self.cursorObj.fetchall()
-            rows = rows[0]
-            texto = rows[10].replace("/"," ▸ ")
-            self.barraestado.SetStatusText(texto)
-        if (valor[0]==1) and (valor[2]=="FALSE"):
-            idd = valor[1]
-            self.tArbol.DeleteChildren(idd)
-            ruta = valor[3]
-            start_dir_entries = self.lista_carpeta(ruta)
-            self.new_folder(start_dir_entries,idd)
-            self.tArbol.SetPyData(idd,(valor[0],valor[1], "TRUE",valor[3])) 
-
-            
-        if (valor[0]==0):
-            valor_ZPK = valor[1]            
-            valor_a_buscar = (valor_ZPK,)
-            self.cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
-            rows = self.cursorObj.fetchall()
-            rows = rows[0]
-
-            
-
-
-# end of class Buscador
-
-
-
-class MyApp(wx.App):
+class indEXa_app(wx.App):
     def OnInit(self):
-        self.frame = Buscador(None, wx.ID_ANY, "")
+        self.frame = indEXa(None, wx.ID_ANY, "")
         self.SetTopWindow(self.frame)
-        self.frame.Centre()
-        if os.path.exists('icono.ico'):
-            ico = wx.Icon('icono.ico', wx.BITMAP_TYPE_ICO)
+        self.frame.Centre() #Se centra la ventana
+        if os.path.exists('icono.ico'): #Si existe el icono en el mismo lugar que el script, se carga y se dibuja en la ventana
+            ico = wx.Icon('icono.ico', wx.BITMAP_TYPE_ICO) #Sólo en Windows
             self.frame.SetIcon(ico)
         self.frame.Show()
         return True
 
-# end of class MyApp
+if __name__ == '__main__':
+    app = indEXa_app(0)
+    app.frame.Layout()
 
-
-if __name__ == "__main__":
-    app = MyApp(0)
+    # --- Se definen los BINDS --- #
+    app.frame.Bind(wx.EVT_MENU, muestra_archivos_ocultos, app.frame.menubar.muestra_ocultos)
+    app.frame.eBuscar.Bind(wx.EVT_SEARCH, iniciar_busqueda)
+    app.frame.btnGestionar.Bind(wx.EVT_BUTTON, abrir_ventana_gestionar)
+    app.frame.btnDuplicados.Bind(wx.EVT_BUTTON, buscar_duplicados)
+    app.frame.Bind(wx.EVT_WINDOW_MODAL_DIALOG_CLOSED, al_cerrar_ventana_gestionar)
+    app.frame.tArbol.GetMainWindow().Bind(wx.EVT_LEFT_UP, al_pulsar)
+    app.frame.tArbol.Bind(wx.EVT_TREE_ITEM_EXPANDED, al_abrir)
+    app.frame.lArbol.Bind(wx.EVT_LIST_ITEM_SELECTED, pulsa_en_item)
+    app.frame.lArbol.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, boton_secundario_lArbol)
+    app.frame.tArbol.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, boton_secundario_tArbol)
+    app.frame.lUnidades.Bind(wx.EVT_LIST_ITEM_SELECTED, seleccion_unidades)
+    app.frame.lUnidades.Bind(wx.EVT_RIGHT_DOWN, menu_lista_unidades)
+    imagen_archivo = imagen_arbol("archivo")
+    imagen_carpeta = imagen_arbol("carpeta")
+    conector = inicia_db() #Se inicia la base de datos
+    carga_tUnidades() #Y se cargan las unidades en la barra de la izquierda
+    app.frame.SetTitle(nombre_app)
+    app.frame.barraestado.SetStatusText("") #Por último, se vacía la barra de estado.
     app.MainLoop()
