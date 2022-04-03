@@ -1,4 +1,4 @@
 TinyTag
 psutil
 wxPython
-pathlib
+pypiwin32
