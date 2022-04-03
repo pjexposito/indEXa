@@ -1,4 +1,4 @@
-##indEXa##
+#indEXa
 
 **Programa para indexar discos unidades externas. Funciona en Linux, Mac y Windows.**
 
@@ -24,6 +24,6 @@ Para poder usar el script es necesario instalar una serie de librerías que pued
 
 - **pypiwin32**: Sólo se carga si se usa Windows. En Mac o Linux dará error al tratar de instalarla. Permite obtener la etiqueta (label) de una unidad.
 
-La forma más sencilla para instalar las librerías es ejecutar esta orden: pip install -r requeriments.txt 
+La forma más sencilla para instalar las librerías es ejecutar esta orden: `pip install -r requeriments.txt`
 En Linux y Mac debes editar el archivo requeriments.txt para eliminar la última línea.
 
