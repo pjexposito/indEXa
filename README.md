@@ -1,4 +1,4 @@
-#indEXa
+# indEXa
 
 **Programa para indexar discos unidades externas. Funciona en Linux, Mac y Windows.**
 
