@@ -1,6 +1,6 @@
-##indEXa
+##indEXa##
 
-**Programa para indexar discos unidades externas. Funciona en Linux, Mac y Windows.
+**Programa para indexar discos unidades externas. Funciona en Linux, Mac y Windows.**
 
 Este script es una prueba de concepto para aprender a manejar *wxPython* y *PyInstaller*. Por esa razón he tratado de comentar el código de la mejor forma posible. Así me servirá a mi en un futuro para recordar conceptos y también puede ayudar a las personas que quieran aprender a manejar scripts con wxPython.
 
