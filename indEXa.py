@@ -18,6 +18,7 @@
 #0.33 Añadir opción para ver o ocultar archivos ocultos
 #0.34 Ahora se pueden abrir los archivos listados haciendo click izquierdo sobre el ítem
 #0.4 Cambio completo del programa. Se divide el script entre código e interfaz y se comentan todas las funciones. También se limpia un poco el código
+#0.41 Se cambia la forma en que los metadatos se guardan en los items del árbol de carpetas. Ahora existe coherencia.
 
 #Icono por https://www.freepik.com/
 
@@ -45,7 +46,7 @@ if sys.platform=='win32': #Se carga esta librería para obtener la etiqueta de l
     import win32api
     #Sólo en Windows. Se instala con pip install pypiwin32
 
-nombre_app = "indEXa 0.4β"
+nombre_app = "indEXa 0.41β"
 
 #En las primeras versiones añadí la posibilidad de guardar los metadatos de los archivos MP3 (álbum, artista, nombre)
 #Era útil, pero significaba añadir un campo extra con etiquetas a la interfaz principal, complicándola. Y por eso lo quité
@@ -452,22 +453,17 @@ def nueva_carpeta(archivos, parent_iid):
         if (nombre[0:1]=='.' or nombre in prohibidas) and not(muestra_ocultos):  #Se usa para no mostrar archivos ocultos
             pass
         else:
+            item = app.frame.tArbol.AppendItem(parent_iid,nombre)
+            app.frame.tArbol.SetItemText(item, devuelve_tamano(tamano), 1)
+            app.frame.tArbol.SetPyData(item,(id, False, item)) 
+            colorletras = wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOXTEXT)
+            app.frame.tArbol.SetItemTextColour(item,colorletras)
             if (carpeta == 1):
-                subdir_iid = app.frame.tArbol.AppendItem(parent_iid,nombre)
-                app.frame.tArbol.SetItemText(subdir_iid, devuelve_tamano(tamano), 1)
-                app.frame.tArbol.SetPyData(subdir_iid,(carpeta, subdir_iid,"FALSE",id))  
-                app.frame.tArbol.SetItemImage(subdir_iid, imagen_carpeta, which = wx.TreeItemIcon_Normal)
-                app.frame.tArbol.SetItemImage(subdir_iid, imagen_carpeta, which = wx.TreeItemIcon_Expanded)
-                app.frame.tArbol.AppendItem(subdir_iid, "Cargando...")
-                colorletras = wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOXTEXT)
-                app.frame.tArbol.SetItemTextColour(subdir_iid,colorletras)
+                app.frame.tArbol.SetItemImage(item, imagen_carpeta, which = wx.TreeItemIcon_Normal)
+                app.frame.tArbol.SetItemImage(item, imagen_carpeta, which = wx.TreeItemIcon_Expanded)
+                app.frame.tArbol.AppendItem(item, "Cargando...")
             else:
-                item = app.frame.tArbol.AppendItem(parent_iid,nombre)
-                app.frame.tArbol.SetItemText(item, devuelve_tamano(tamano), 1)
                 app.frame.tArbol.SetItemImage(item, imagen_archivo, which = wx.TreeItemIcon_Normal)
-                app.frame.tArbol.SetPyData(item,(carpeta,id,nombre,tamano,zparent,tipo,ruta_completa)) 
-                colorletras = wx.SystemSettings.GetColour(wx.SYS_COLOUR_LISTBOXTEXT)
-                app.frame.tArbol.SetItemTextColour(item,colorletras)
 
 
 def extraer_datos_tvResultados(item):
@@ -475,34 +471,26 @@ def extraer_datos_tvResultados(item):
     #Si es un archivo extrae su información y se es una carpeta ejecuta de nuevo "nueva_carpeta" para pintar su contenido.
     cursorObj = conector.cursor()
     valor = app.frame.tArbol.GetPyData(item)
-    
     #Se comprueba si "valor" es distinto a "Principal". Esto es así para evitar ejecutar el resto de función si lo que
     #se ha seleccionado es la rama principal del árbol de carpetas.
     if (valor!="Principal"):
-        #De nuevo lo que viene ahora corrige un error del diseño inicial. El valor de ZPK está en una posición distinta cuando
-        #es un archivo o una carpeta ::facepalm:: Por ello, si es una carpeta se usa el valor en posición 3 y si no, en 1
-        if (valor[0]==1):
-            valor_ZPK = valor[3]  
-        else:
-            valor_ZPK = valor[1]            
-        valor_a_buscar = (valor_ZPK,)
-        cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
-        rows = cursorObj.fetchall()
-        rows = rows[0]
+        cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',(valor[0],))
+        datos = cursorObj.fetchall()[0]
         #Cambio la barra por un triángulo porque queda mejor.
-        texto = rows[10].replace("/"," ▸ ")
+        texto = datos[10].replace("/"," ▸ ")
         app.frame.barraestado.SetStatusText(texto)
-    if (valor[0]==1) and (valor[2]=="FALSE"):
-        #El valor[2] comprueba que la función no se ha ejecutado con anterioridad. Si se ha ejecutado antes el árbol ya está
-        #dibujado y no es necesario dibujarlo de nuevo.
-        idd = valor[1]
-        #Con la orden que sigue se borra el item "Cargando..."
-        app.frame.tArbol.DeleteChildren(idd)
-        ruta = valor[3]
-        carpetas_inicio = lista_carpeta(ruta)
-        nueva_carpeta(carpetas_inicio,idd)
-        #Se establece el valor[3] en TRUE para que no se vuelva a dibujar el árbol.
-        app.frame.tArbol.SetPyData(idd,(valor[0],valor[1], "TRUE",valor[3]))         
+        if (datos[6]==1) and (valor[1]==False): #datos[6] es 1 si se trata de una carpeta o 0 si se trata de un archivo
+            #El valor[1] comprueba que la función no se ha ejecutado con anterioridad. Si se ha ejecutado antes el árbol ya está
+            #dibujado y no es necesario dibujarlo de nuevo.
+            id_en_arbol = valor[2] 
+            #En la posición 2 se guarda el valor del item dentro del arbol. De esa forma se pueden añadir dentro el resto de items
+            #Con la orden que sigue se borra el item "Cargando..."
+            app.frame.tArbol.DeleteChildren(id_en_arbol)
+            ruta = datos[0]
+            carpetas_inicio = lista_carpeta(ruta)
+            nueva_carpeta(carpetas_inicio,id_en_arbol)
+            #Se establece el valor[3] en TRUE para que no se vuelva a dibujar el árbol.
+            app.frame.tArbol.SetPyData(id_en_arbol,(valor[0], True, id_en_arbol))         
 
 def muestra_archivos_ocultos(event):
     #Función para mostrar archivos ocultos
@@ -776,14 +764,10 @@ def boton_secundario_tArbol(evt):
     valor = app.frame.tArbol.GetPyData(item)
     #El if de abajo impide que se abra el menú si lo que se selecciona es el tronco del árbol de carpetas
     if valor!='Principal':
-        if valor[0]==1:
-            valor_a_buscar = (valor[3],)
-        elif valor[0]==0:
-            valor_a_buscar = (valor[1],)
+        valor_a_buscar = (valor[0],)
         #Con la siguiente búsqueda se obtiene la ruta del archivo o carpeta (ya que si no sólo tendríamos el nombre)
         cursorObj.execute('SELECT * FROM ZSTORAGEITEM WHERE ZPK=?',valor_a_buscar)
         ruta = cursorObj.fetchall()[0][10]
-    
         #Se genera un menú con las opciones y se muestra al usuario.
         app.frame.popupmenucarpeta = wx.Menu()
         menuAbrir = app.frame.popupmenucarpeta.Append(1, 'Abrir')
